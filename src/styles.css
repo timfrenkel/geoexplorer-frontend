@@ -465,3 +465,13 @@ body {
 .leaflet-top.leaflet-left {
   top: 4.8rem; /* bei Bedarf noch etwas hoch/runter anpassen */
 }
+
+.badge-marker:hover {
+  transform: translateY(-4px) scale(1.12);
+  transition: transform 0.25s ease;
+}
+
+.badge-marker {
+  transition: transform 0.25s ease;
+  cursor: pointer;
+}
