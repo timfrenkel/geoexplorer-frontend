@@ -17,37 +17,52 @@ const AdminStats = () => {
   }, []);
 
   if (error) return <div className="error">{error}</div>;
-  if (!stats) return <div>Lade Statistiken...</div>;
+  if (!stats) return <div className="center">Lade Statistiken...</div>;
 
   return (
-    <div>
+    <div className="fade-in">
       <div className="card">
-        <p><strong>Benutzer insgesamt:</strong> {stats.userCount}</p>
-        <p><strong>Check-ins insgesamt:</strong> {stats.totalCheckins}</p>
+        <div className="card-header">
+          <h3 className="card-title">Überblick</h3>
+        </div>
+        <p>
+          <strong>Benutzer insgesamt:</strong> {stats.userCount}
+        </p>
+        <p>
+          <strong>Check-ins insgesamt:</strong> {stats.totalCheckins}
+        </p>
       </div>
 
-      <h3>Check-ins pro Sehenswürdigkeit</h3>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Check-ins</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stats.locations.map((loc) => (
-            <tr key={loc.id}>
-              <td>{loc.name}</td>
-              <td>{loc.checkins}</td>
-            </tr>
-          ))}
-          {stats.locations.length === 0 && (
+      <div className="card slide-up">
+        <div className="card-header">
+          <h3 className="card-title">Check-ins pro Sehenswürdigkeit</h3>
+          <p className="card-subtitle">
+            Zeigt, welche Orte besonders beliebt sind.
+          </p>
+        </div>
+
+        <table className="table">
+          <thead>
             <tr>
-              <td colSpan={2}>Noch keine Daten vorhanden.</td>
+              <th>Name</th>
+              <th>Check-ins</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {stats.locations.map((loc) => (
+              <tr key={loc.id}>
+                <td>{loc.name}</td>
+                <td>{loc.checkins}</td>
+              </tr>
+            ))}
+            {stats.locations.length === 0 && (
+              <tr>
+                <td colSpan={2}>Noch keine Daten vorhanden.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
