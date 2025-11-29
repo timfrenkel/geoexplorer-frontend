@@ -187,10 +187,10 @@ const MapPage = () => {
   const progress = total > 0 ? Math.round((visitedCount / total) * 100) : 0;
 
   return (
-    <div className="page page-full">
+    <div className="page page-full fade-in">
       <div className="map-wrapper">
         {/* Overlay oben über der Karte: Fortschritt + Nächste Ziele */}
-        <div className="map-overlay-top">
+        <div className="map-overlay-top slide-up">
           {/* Fortschritt */}
           <div className="overlay-card overlay-progress">
             <p className="overlay-title">Dein Fortschritt</p>
@@ -237,7 +237,7 @@ const MapPage = () => {
         </div>
 
         {loading ? (
-          <div className="center">Lade Sehenswürdigkeiten...</div>
+          <div className="center">Lade Sehenswürdigkeiten.</div>
         ) : (
           <MapContainer
             center={defaultCenter}
@@ -250,7 +250,7 @@ const MapPage = () => {
 
             {/* Deutsch-orientierte OSM-Karte (openstreetmap.de) */}
             <TileLayer
-              attribution='&copy; OpenStreetMap-Mitwirkende'
+              attribution="&copy; OpenStreetMap-Mitwirkende"
               url="https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png"
             />
 
@@ -299,7 +299,7 @@ const MapPage = () => {
           </MapContainer>
         )}
 
-        {/* Fehler / Status unterhalb der Karte (aber noch im Sichtfeld) */}
+        {/* Fehler / Status als Toast unten im Sichtfeld */}
         <div className="map-messages">
           {geoError && <div className="error">{geoError}</div>}
           {status && <div className="status">{status}</div>}

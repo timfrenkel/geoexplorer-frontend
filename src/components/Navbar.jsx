@@ -6,7 +6,10 @@ const Navbar = ({ user, onLogout }) => {
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        <span className="logo">Travel Badges</span>
+        <span className="logo">
+          <span className="logo-emoji" aria-hidden="true">🌍</span>
+          Travel Badges
+        </span>
       </div>
       <div className="navbar-right">
         {user ? (
@@ -21,7 +24,9 @@ const Navbar = ({ user, onLogout }) => {
         ) : (
           <>
             <Link to="/login">Login</Link>
-            <Link to="/register">Registrieren</Link>
+            <Link to="/register" className="nav-link-primary">
+              Registrieren
+            </Link>
           </>
         )}
       </div>

@@ -18,12 +18,10 @@ const getLevelInfo = (points) => {
   let currentLevelStart = 0;   // Startpunkt dieses Levels (inklusive)
   let increment = 1;           // Punkte, die man für dieses Level braucht
 
-  // Wir laufen so lange hoch, bis die Punkte NICHT mehr reichen,
-  // um ins nächste Level aufzusteigen.
   while (points >= currentLevelStart + increment) {
     currentLevelStart += increment;
     level += 1;
-    increment += 1; // nächstes Level braucht 3 mehr
+    increment += 1; // nächstes Level braucht mehr
   }
 
   const currentLevelEnd = currentLevelStart + increment; // Exklusive Grenze
@@ -43,9 +41,9 @@ const getLevelInfo = (points) => {
   return {
     level,
     title,
-    perLevel,           // Punkte, die für dieses Level insgesamt nötig sind
-    currentLevelStart,  // ab wie vielen Punkten dieses Level beginnt
-    currentLevelEnd,    // ab wie vielen Punkten das nächste Level beginnt
+    perLevel,
+    currentLevelStart,
+    currentLevelEnd,
     pointsIntoLevel,
     neededForNext
   };
@@ -68,7 +66,7 @@ const ProfilePage = () => {
   }, []);
 
   if (error) return <div className="error">{error}</div>;
-  if (!profile) return <div>Lade Profil...</div>;
+  if (!profile) return <div className="center">Lade Profil...</div>;
 
   const { user, points, badges } = profile;
   const {
@@ -83,20 +81,44 @@ const ProfilePage = () => {
     perLevel > 0 ? Math.min(100, Math.round((pointsIntoLevel / perLevel) * 100)) : 0;
 
   return (
-    <div className="page">
-      <h2>Profil</h2>
-      <div className="card">
-        <p><strong>Benutzername:</strong> {user.username}</p>
-        <p><strong>E-Mail:</strong> {user.email}</p>
-        <p><strong>Punkte:</strong> {points}</p>
+    <div className="page fade-in">
+      <div className="page-header">
+        <h2 className="page-title">Profil</h2>
+        <p className="page-subtitle">
+          Deine Reise durch die Städte – sammle Badges, steig im Level auf und werde Legendärer Explorer.
+        </p>
+      </div>
+
+      <div className="card slide-up">
+        <div className="card-header">
+          <div>
+            <p className="card-title">{user.username}</p>
+            <p className="card-subtitle">{user.email}</p>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+              Punkte: <strong>{points}</strong>
+            </span>
+          </div>
+        </div>
+
         <p>
           <strong>Level:</strong> {level} – {title}
         </p>
-        <p>
+
+        <p style={{ marginBottom: '0.3rem' }}>
           <strong>Fortschritt zu Level {level + 1}:</strong>{' '}
           {pointsIntoLevel}/{perLevel} ({levelProgressPercent}%)
         </p>
-        <p>
+
+        <div className="overlay-progress-bar" style={{ marginBottom: '0.35rem' }}>
+          <div
+            className="overlay-progress-fill"
+            style={{ width: `${levelProgressPercent}%` }}
+          />
+        </div>
+
+        <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>
           Du brauchst noch <strong>{neededForNext}</strong> Check-in
           {neededForNext !== 1 ? 's' : ''} für Level {level + 1}.
         </p>
@@ -106,7 +128,7 @@ const ProfilePage = () => {
       {badges.length === 0 ? (
         <p>Noch keine Badges gesammelt – geh auf Entdeckungstour!</p>
       ) : (
-        <ul className="badge-list">
+        <ul className="badge-list slide-up">
           {badges.map((b) => (
             <li key={b.id} className="badge-item">
               <strong>{b.name}</strong>
