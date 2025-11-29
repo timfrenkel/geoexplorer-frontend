@@ -15,13 +15,13 @@ import api from '../api';
 const getLevelInfo = (points) => {
   let level = 1;
 
-  let currentLevelStart = 0;   // Startpunkt dieses Levels (inklusive)
-  let increment = 1;           // Punkte, die man für dieses Level braucht
+  let currentLevelStart = 0; // Startpunkt dieses Levels (inklusive)
+  let increment = 1; // Punkte, die man für dieses Level braucht
 
   while (points >= currentLevelStart + increment) {
     currentLevelStart += increment;
     level += 1;
-    increment += 1; // nächstes Level braucht mehr
+    increment += 1;
   }
 
   const currentLevelEnd = currentLevelStart + increment; // Exklusive Grenze
@@ -66,7 +66,7 @@ const ProfilePage = () => {
   }, []);
 
   if (error) return <div className="error">{error}</div>;
-  if (!profile) return <div className="center">Lade Profil...</div>;
+  if (!profile) return <div className="center">Lade Profil…</div>;
 
   const { user, points, badges } = profile;
   const {
@@ -78,57 +78,60 @@ const ProfilePage = () => {
   } = getLevelInfo(points);
 
   const levelProgressPercent =
-    perLevel > 0 ? Math.min(100, Math.round((pointsIntoLevel / perLevel) * 100)) : 0;
+    perLevel > 0
+      ? Math.min(100, Math.round((pointsIntoLevel / perLevel) * 100))
+      : 0;
+
+  const initial =
+    user?.username?.charAt(0)?.toUpperCase() ||
+    user?.email?.charAt(0)?.toUpperCase() ||
+    'U';
 
   return (
-    <div className="page fade-in">
-      <div className="page-header">
-        <h2 className="page-title">Profil</h2>
-        <p className="page-subtitle">
-          Deine Reise durch die Städte – sammle Badges, steig im Level auf und werde Legendärer Explorer.
-        </p>
-      </div>
-
-      <div className="card slide-up">
-        <div className="card-header">
+    <div className="page">
+      {/* Hero Card */}
+      <div className="card profile-hero">
+        <div className="profile-hero-main">
+          <div className="profile-avatar">{initial}</div>
           <div>
-            <p className="card-title">{user.username}</p>
-            <p className="card-subtitle">{user.email}</p>
-          </div>
-          <div>
-            <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-              Punkte: <strong>{points}</strong>
-            </span>
+            <h2 className="profile-name">{user.username}</h2>
+            <p className="profile-email">{user.email}</p>
           </div>
         </div>
+        <div className="profile-level-pill">
+          <div>Level {level}</div>
+          <div>{title}</div>
+        </div>
+      </div>
 
+      {/* Progress Card */}
+      <div className="card profile-progress-card">
         <p>
-          <strong>Level:</strong> {level} – {title}
+          <strong>Gesamtpunkte:</strong> {points}
         </p>
-
-        <p style={{ marginBottom: '0.3rem' }}>
+        <p>
           <strong>Fortschritt zu Level {level + 1}:</strong>{' '}
           {pointsIntoLevel}/{perLevel} ({levelProgressPercent}%)
         </p>
-
-        <div className="overlay-progress-bar" style={{ marginBottom: '0.35rem' }}>
+        <div className="overlay-progress-bar" style={{ marginTop: '0.35rem' }}>
           <div
             className="overlay-progress-fill"
             style={{ width: `${levelProgressPercent}%` }}
           />
         </div>
-
-        <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-          Du brauchst noch <strong>{neededForNext}</strong> Check-in
-          {neededForNext !== 1 ? 's' : ''} für Level {level + 1}.
+        <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#4b5563' }}>
+          Dir fehlen noch{' '}
+          <strong>{neededForNext}</strong> Check-in
+          {neededForNext !== 1 ? 's' : ''} für Level {level + 1}. 🗺️
         </p>
       </div>
 
-      <h3>Gesammelte Badges</h3>
+      {/* Badges */}
+      <h3>Deine Badges</h3>
       {badges.length === 0 ? (
         <p>Noch keine Badges gesammelt – geh auf Entdeckungstour!</p>
       ) : (
-        <ul className="badge-list slide-up">
+        <ul className="badge-list">
           {badges.map((b) => (
             <li key={b.id} className="badge-item">
               <strong>{b.name}</strong>

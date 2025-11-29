@@ -22,6 +22,42 @@ const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
+/**
+ * Gleiches Level-System wie in der Profilseite
+ */
+const getLevelInfo = (points) => {
+  let level = 1;
+  let currentLevelStart = 0;
+  let increment = 1;
+
+  while (points >= currentLevelStart + increment) {
+    currentLevelStart += increment;
+    level += 1;
+    increment += 1;
+  }
+
+  const currentLevelEnd = currentLevelStart + increment;
+  const pointsIntoLevel = points - currentLevelStart;
+  const neededForNext = Math.max(0, currentLevelEnd - points);
+
+  let title = 'Anfänger';
+  if (level === 2 || level === 3) {
+    title = 'Stadterkunder';
+  } else if (level === 4 || level === 5) {
+    title = 'Weltenbummler';
+  } else if (level >= 6) {
+    title = 'Legendärer Explorer';
+  }
+
+  return {
+    level,
+    title,
+    pointsIntoLevel,
+    perLevel: increment,
+    neededForNext
+  };
+};
+
 // Badge-Icons als DivIcons (Emoji)
 const visitedIcon = L.divIcon({
   className: 'badge-marker badge-marker-visited',
@@ -60,6 +96,10 @@ const MapPage = () => {
   const [locatingNearest, setLocatingNearest] = useState(false);
   const [focusedLocation, setFocusedLocation] = useState(null);
 
+  const [playerPoints, setPlayerPoints] = useState(0);
+  const [levelInfo, setLevelInfo] = useState(null);
+  const [showNearestList, setShowNearestList] = useState(false);
+
   const defaultCenter = [52.52, 13.405]; // Berlin als Startansicht
 
   useEffect(() => {
@@ -69,11 +109,15 @@ const MapPage = () => {
         const locRes = await api.get('/locations');
         setLocations(locRes.data.locations || []);
 
-        // 2) Profil + Badges für besuchte Orte
+        // 2) Profil + Badges + Punkte
         const meRes = await api.get('/auth/me');
         const badges = meRes.data.badges || [];
         const ids = new Set(badges.map((b) => b.location_id));
         setVisitedIds(ids);
+
+        const points = meRes.data.points || 0;
+        setPlayerPoints(points);
+        setLevelInfo(getLevelInfo(points));
       } catch (err) {
         console.error(err);
         setStatus('Fehler beim Laden der Karte oder des Profils.');
@@ -106,7 +150,21 @@ const MapPage = () => {
           setStatus(res.data.message || 'Check-in erfolgreich!');
 
           // Nach erfolgreichem Check-in als besucht markieren
-          setVisitedIds((prev) => new Set(prev).add(location.id));
+          setVisitedIds((prev) => {
+            const copy = new Set(prev);
+            copy.add(location.id);
+            return copy;
+          });
+
+          // Punkte neu laden (vereinfachter Ansatz: Profil neu holen)
+          try {
+            const meRes = await api.get('/auth/me');
+            const points = meRes.data.points || 0;
+            setPlayerPoints(points);
+            setLevelInfo(getLevelInfo(points));
+          } catch (e) {
+            console.error('Fehler beim Aktualisieren der Punkte', e);
+          }
         } catch (err) {
           setStatus(
             err.response?.data?.message || 'Check-in fehlgeschlagen.'
@@ -134,6 +192,7 @@ const MapPage = () => {
     setStatus('');
     setNearestTargets([]);
     setLocatingNearest(true);
+    setShowNearestList(true);
 
     if (!navigator.geolocation) {
       setGeoError('Geolocation wird von deinem Browser nicht unterstützt.');
@@ -186,17 +245,39 @@ const MapPage = () => {
   const visitedCount = visitedIds.size;
   const progress = total > 0 ? Math.round((visitedCount / total) * 100) : 0;
 
+  const missionText =
+    levelInfo && levelInfo.neededForNext > 0
+      ? `Noch ${levelInfo.neededForNext} Check-in${
+          levelInfo.neededForNext !== 1 ? 's' : ''
+        } bis Level ${levelInfo.level + 1}.`
+      : 'Du hast das nächste Level schon erreicht – such dir ein neues Ziel!';
+
+  const nearestButtonLabel = () => {
+    if (locatingNearest) return 'Suche in deiner Nähe…';
+    if (nearestTargets.length === 0) return 'Nächste Ziele finden';
+    return showNearestList ? 'Ziele ausblenden' : 'Ziele anzeigen';
+  };
+
   return (
-    <div className="page page-full fade-in">
+    <div className="page page-full">
       <div className="map-wrapper">
         {/* Overlay oben über der Karte: Fortschritt + Nächste Ziele */}
-        <div className="map-overlay-top slide-up">
+        <div className="map-overlay-top">
           {/* Fortschritt */}
           <div className="overlay-card overlay-progress">
-            <p className="overlay-title">Dein Fortschritt</p>
+            {levelInfo && (
+              <p className="overlay-title">
+                Level {levelInfo.level} – {levelInfo.title}
+              </p>
+            )}
             <p className="overlay-text">
               {visitedCount} von {total} Orten gesammelt ({progress}%)
             </p>
+            {levelInfo && (
+              <p className="overlay-text" style={{ marginBottom: '0.25rem' }}>
+                {missionText}
+              </p>
+            )}
             <div className="overlay-progress-bar">
               <div
                 className="overlay-progress-fill"
@@ -207,15 +288,22 @@ const MapPage = () => {
 
           {/* Nächste Ziele Button + Liste */}
           <div className="overlay-card overlay-nearest">
+            <p className="overlay-title">Nächste Mission</p>
             <button
               className="btn-small btn-overlay"
-              onClick={handleFindNearest}
+              onClick={() => {
+                if (nearestTargets.length === 0) {
+                  handleFindNearest();
+                } else {
+                  setShowNearestList((prev) => !prev);
+                }
+              }}
               disabled={locatingNearest || locations.length === 0}
             >
-              {locatingNearest ? 'Suche in deiner Nähe…' : 'Nächste Ziele finden'}
+              {nearestButtonLabel()}
             </button>
 
-            {nearestTargets.length > 0 && (
+            {showNearestList && nearestTargets.length > 0 && (
               <ul className="nearest-list-overlay">
                 {nearestTargets.map(({ loc, distanceKm }) => (
                   <li
@@ -237,7 +325,7 @@ const MapPage = () => {
         </div>
 
         {loading ? (
-          <div className="center">Lade Sehenswürdigkeiten.</div>
+          <div className="center">Lade Sehenswürdigkeiten…</div>
         ) : (
           <MapContainer
             center={defaultCenter}
@@ -280,7 +368,9 @@ const MapPage = () => {
                     Radius: {loc.radius_m}m
                     <br />
                     {isVisited && (
-                      <span style={{ color: '#16a34a', fontSize: '0.85rem' }}>
+                      <span
+                        style={{ color: '#16a34a', fontSize: '0.85rem' }}
+                      >
                         ✅ Badge bereits gesammelt
                         <br />
                       </span>
@@ -299,7 +389,7 @@ const MapPage = () => {
           </MapContainer>
         )}
 
-        {/* Fehler / Status als Toast unten im Sichtfeld */}
+        {/* Fehler / Status unterhalb der Karte (aber noch im Sichtfeld) */}
         <div className="map-messages">
           {geoError && <div className="error">{geoError}</div>}
           {status && <div className="status">{status}</div>}
