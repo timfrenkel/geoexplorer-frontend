@@ -747,5 +747,274 @@
   }
 }
 
+/* --- Profil Hero / Avatar / Privacy --- */
+
+.profile-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-hero-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.profile-avatar-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.profile-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.4rem;
+  overflow: hidden;
+}
+
+.profile-avatar-initial {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.profile-avatar-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.profile-avatar-status {
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.profile-name {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.profile-email {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.profile-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.profile-privacy {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+.privacy-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  gap: 0.25rem;
+}
+
+.privacy-label select {
+  width: fit-content;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  font-size: 0.85rem;
+}
+
+.privacy-hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.35rem;
+}
+
+/* --- Feed / Beiträge --- */
+
+.profile-section-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.profile-section-subtitle {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.feed-form label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.feed-form select,
+.feed-form textarea,
+.feed-form input[type="file"] {
+  width: 100%;
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.feed-image-input {
+  font-size: 0.85rem;
+}
+
+.feed-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+}
+
+.feed-post {
+  padding: 0.75rem 0.1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.feed-post:first-child {
+  border-top: none;
+  padding-top: 0.5rem;
+}
+
+.feed-post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.feed-post-location {
+  font-weight: 500;
+  color: #111827;
+}
+
+.feed-post-date {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.feed-post-body p {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.feed-post-image {
+  display: block;
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+/* --- User-Suche & Freunde --- */
+
+.profile-search-card {
+  margin-top: 1rem;
+}
+
+.search-form {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.search-form input {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid #d1d5db;
+}
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.search-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.45rem 0.1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.search-user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  overflow: hidden;
+}
+
+.search-avatar-initial {
+  color: #374151;
+}
+
+.search-user-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.search-username {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.search-email {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.search-friends-label {
+  font-size: 0.8rem;
+  color: #16a34a;
+}
+
+/* --- Mobile Tweaks Profil --- */
+
+@media (max-width: 640px) {
+  .profile-hero-main {
+    align-items: flex-start;
+  }
+
+  .search-result-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .search-form {
+    flex-direction: column;
+  }
+
+  .search-form input {
+    width: 100%;
+  }
+}
+
   /* Ende styles.css */
   
