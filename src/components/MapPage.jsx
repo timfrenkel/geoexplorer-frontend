@@ -22,42 +22,6 @@ const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-/**
- * Gleiches Level-System wie in der Profilseite
- */
-const getLevelInfo = (points) => {
-  let level = 1;
-  let currentLevelStart = 0;
-  let increment = 1;
-
-  while (points >= currentLevelStart + increment) {
-    currentLevelStart += increment;
-    level += 1;
-    increment += 1;
-  }
-
-  const currentLevelEnd = currentLevelStart + increment;
-  const pointsIntoLevel = points - currentLevelStart;
-  const neededForNext = Math.max(0, currentLevelEnd - points);
-
-  let title = 'Anfänger';
-  if (level === 2 || level === 3) {
-    title = 'Stadterkunder';
-  } else if (level === 4 || level === 5) {
-    title = 'Weltenbummler';
-  } else if (level >= 6) {
-    title = 'Legendärer Explorer';
-  }
-
-  return {
-    level,
-    title,
-    pointsIntoLevel,
-    perLevel: increment,
-    neededForNext
-  };
-};
-
 // Badge-Icons als DivIcons (Emoji)
 const visitedIcon = L.divIcon({
   className: 'badge-marker badge-marker-visited',
@@ -96,9 +60,13 @@ const MapPage = () => {
   const [locatingNearest, setLocatingNearest] = useState(false);
   const [focusedLocation, setFocusedLocation] = useState(null);
 
-  const [playerPoints, setPlayerPoints] = useState(0);
-  const [levelInfo, setLevelInfo] = useState(null);
-  const [showNearestList, setShowNearestList] = useState(false);
+  // NEU: Modal für Foto + Text nach Check-in
+  const [memoryModalOpen, setMemoryModalOpen] = useState(false);
+  const [memoryLocation, setMemoryLocation] = useState(null);
+  const [memoryText, setMemoryText] = useState('');
+  const [memoryImage, setMemoryImage] = useState(null);
+  const [memorySubmitting, setMemorySubmitting] = useState(false);
+  const [memoryStatus, setMemoryStatus] = useState('');
 
   const defaultCenter = [52.52, 13.405]; // Berlin als Startansicht
 
@@ -109,15 +77,11 @@ const MapPage = () => {
         const locRes = await api.get('/locations');
         setLocations(locRes.data.locations || []);
 
-        // 2) Profil + Badges + Punkte
+        // 2) Profil + Badges für besuchte Orte
         const meRes = await api.get('/auth/me');
         const badges = meRes.data.badges || [];
         const ids = new Set(badges.map((b) => b.location_id));
         setVisitedIds(ids);
-
-        const points = meRes.data.points || 0;
-        setPlayerPoints(points);
-        setLevelInfo(getLevelInfo(points));
       } catch (err) {
         console.error(err);
         setStatus('Fehler beim Laden der Karte oder des Profils.');
@@ -128,6 +92,64 @@ const MapPage = () => {
 
     loadData();
   }, []);
+
+  const openMemoryModal = (location) => {
+    setMemoryLocation(location);
+    setMemoryText('');
+    setMemoryImage(null);
+    setMemoryStatus('');
+    setMemoryModalOpen(true);
+  };
+
+  const closeMemoryModal = () => {
+    setMemoryModalOpen(false);
+    setMemoryLocation(null);
+    setMemoryText('');
+    setMemoryImage(null);
+    setMemoryStatus('');
+  };
+
+  const handleMemoryImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMemoryImage(file);
+  };
+
+  const handleMemorySubmit = async (e) => {
+    e.preventDefault();
+    if (!memoryLocation) return;
+
+    setMemorySubmitting(true);
+    setMemoryStatus('');
+
+    try {
+      const formData = new FormData();
+      formData.append('text', memoryText || '');
+      if (memoryImage) {
+        formData.append('image', memoryImage);
+      }
+
+      // HINWEIS: Diesen Endpoint musst du im Backend implementieren.
+      // Idee: POST /api/locations/:id/memory
+      await api.post(`/locations/${memoryLocation.id}/memory`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setMemoryStatus('Erinnerung gespeichert.');
+      // Modal nach kurzer Bestätigung schließen
+      setTimeout(() => {
+        closeMemoryModal();
+      }, 600);
+    } catch (err) {
+      console.error(err);
+      setMemoryStatus(
+        err.response?.data?.message ||
+          'Erinnerung konnte nicht gespeichert werden.'
+      );
+    } finally {
+      setMemorySubmitting(false);
+    }
+  };
 
   const handleCheckin = (location) => {
     setStatus('');
@@ -150,22 +172,12 @@ const MapPage = () => {
           setStatus(res.data.message || 'Check-in erfolgreich!');
 
           // Nach erfolgreichem Check-in als besucht markieren
-          setVisitedIds((prev) => {
-            const copy = new Set(prev);
-            copy.add(location.id);
-            return copy;
-          });
+          setVisitedIds((prev) => new Set(prev).add(location.id));
 
-          // Punkte neu laden (vereinfachter Ansatz: Profil neu holen)
-          try {
-            const meRes = await api.get('/auth/me');
-            const points = meRes.data.points || 0;
-            setPlayerPoints(points);
-            setLevelInfo(getLevelInfo(points));
-          } catch (e) {
-            console.error('Fehler beim Aktualisieren der Punkte', e);
-          }
+          // NACH Check-in: Möglichkeit für Foto + Text zu diesem Ort
+          openMemoryModal(location);
         } catch (err) {
+          console.error(err);
           setStatus(
             err.response?.data?.message || 'Check-in fehlgeschlagen.'
           );
@@ -174,7 +186,9 @@ const MapPage = () => {
       (err) => {
         console.error(err);
         if (err.code === err.PERMISSION_DENIED) {
-          setGeoError('Standortfreigabe verweigert. Bitte erlaube den Zugriff.');
+          setGeoError(
+            'Standortfreigabe verweigert. Bitte erlaube den Zugriff.'
+          );
         } else {
           setGeoError('Fehler beim Abrufen deines Standorts.');
         }
@@ -192,7 +206,6 @@ const MapPage = () => {
     setStatus('');
     setNearestTargets([]);
     setLocatingNearest(true);
-    setShowNearestList(true);
 
     if (!navigator.geolocation) {
       setGeoError('Geolocation wird von deinem Browser nicht unterstützt.');
@@ -223,7 +236,9 @@ const MapPage = () => {
       (err) => {
         console.error(err);
         if (err.code === err.PERMISSION_DENIED) {
-          setGeoError('Standortfreigabe verweigert. Bitte erlaube den Zugriff.');
+          setGeoError(
+            'Standortfreigabe verweigert. Bitte erlaube den Zugriff.'
+          );
         } else {
           setGeoError('Fehler beim Abrufen deines Standorts.');
         }
@@ -245,19 +260,6 @@ const MapPage = () => {
   const visitedCount = visitedIds.size;
   const progress = total > 0 ? Math.round((visitedCount / total) * 100) : 0;
 
-  const missionText =
-    levelInfo && levelInfo.neededForNext > 0
-      ? `Noch ${levelInfo.neededForNext} Check-in${
-          levelInfo.neededForNext !== 1 ? 's' : ''
-        } bis Level ${levelInfo.level + 1}.`
-      : 'Du hast das nächste Level schon erreicht – such dir ein neues Ziel!';
-
-  const nearestButtonLabel = () => {
-    if (locatingNearest) return 'Suche in deiner Nähe…';
-    if (nearestTargets.length === 0) return 'Nächste Ziele finden';
-    return showNearestList ? 'Ziele ausblenden' : 'Ziele anzeigen';
-  };
-
   return (
     <div className="page page-full">
       <div className="map-wrapper">
@@ -265,19 +267,10 @@ const MapPage = () => {
         <div className="map-overlay-top">
           {/* Fortschritt */}
           <div className="overlay-card overlay-progress">
-            {levelInfo && (
-              <p className="overlay-title">
-                Level {levelInfo.level} – {levelInfo.title}
-              </p>
-            )}
+            <p className="overlay-title">Dein Fortschritt</p>
             <p className="overlay-text">
               {visitedCount} von {total} Orten gesammelt ({progress}%)
             </p>
-            {levelInfo && (
-              <p className="overlay-text" style={{ marginBottom: '0.25rem' }}>
-                {missionText}
-              </p>
-            )}
             <div className="overlay-progress-bar">
               <div
                 className="overlay-progress-fill"
@@ -288,22 +281,15 @@ const MapPage = () => {
 
           {/* Nächste Ziele Button + Liste */}
           <div className="overlay-card overlay-nearest">
-            <p className="overlay-title">Nächste Mission</p>
             <button
               className="btn-small btn-overlay"
-              onClick={() => {
-                if (nearestTargets.length === 0) {
-                  handleFindNearest();
-                } else {
-                  setShowNearestList((prev) => !prev);
-                }
-              }}
+              onClick={handleFindNearest}
               disabled={locatingNearest || locations.length === 0}
             >
-              {nearestButtonLabel()}
+              {locatingNearest ? 'Suche in deiner Nähe…' : 'Nächste Ziele finden'}
             </button>
 
-            {showNearestList && nearestTargets.length > 0 && (
+            {nearestTargets.length > 0 && (
               <ul className="nearest-list-overlay">
                 {nearestTargets.map(({ loc, distanceKm }) => (
                   <li
@@ -325,7 +311,7 @@ const MapPage = () => {
         </div>
 
         {loading ? (
-          <div className="center">Lade Sehenswürdigkeiten…</div>
+          <div className="center">Lade Sehenswürdigkeiten...</div>
         ) : (
           <MapContainer
             center={defaultCenter}
@@ -380,7 +366,7 @@ const MapPage = () => {
                       onClick={() => handleCheckin(loc)}
                       disabled={isVisited}
                     >
-                      {isVisited ? 'Schon eingecheckt' : 'Check-in'}
+                      {isVisited ? 'Schon eingecheckt' : 'Check-in & Erinnerung'}
                     </button>
                   </Popup>
                 </Marker>
@@ -394,6 +380,61 @@ const MapPage = () => {
           {geoError && <div className="error">{geoError}</div>}
           {status && <div className="status">{status}</div>}
         </div>
+
+        {/* MODAL: Foto + Text zu diesem Check-in */}
+        {memoryModalOpen && memoryLocation && (
+          <div className="memory-modal-backdrop">
+            <div className="memory-modal">
+              <div className="memory-modal-header">
+                <h3>Erinnerung speichern</h3>
+                <p>
+                  {memoryLocation.name}: Füge ein Foto und eine kleine Notiz zu
+                  diesem Besuch hinzu.
+                </p>
+              </div>
+              <form onSubmit={handleMemorySubmit} className="memory-modal-body">
+                <label>
+                  Bild (direkt mit Kamera möglich)
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleMemoryImageChange}
+                  />
+                </label>
+                <label>
+                  Notiz
+                  <textarea
+                    rows={3}
+                    placeholder="Wie war dein Erlebnis an diesem Ort?"
+                    value={memoryText}
+                    onChange={(e) => setMemoryText(e.target.value)}
+                  />
+                </label>
+
+                {memoryStatus && <div className="status">{memoryStatus}</div>}
+
+                <div className="memory-modal-actions">
+                  <button
+                    type="button"
+                    className="btn-small"
+                    onClick={closeMemoryModal}
+                    disabled={memorySubmitting}
+                  >
+                    Später
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={memorySubmitting}
+                  >
+                    {memorySubmitting ? 'Speichere...' : 'Speichern'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
