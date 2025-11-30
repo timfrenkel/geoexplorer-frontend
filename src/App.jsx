@@ -1,6 +1,11 @@
 // frontend/src/App.jsx
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate
+} from 'react-router-dom';
 
 import api from './api';
 import Navbar from './components/Navbar';
@@ -10,6 +15,12 @@ import MapPage from './components/MapPage';
 import ProfilePage from './components/ProfilePage';
 import AdminDashboard from './components/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+
+// 🔹 Zusätzliche Seiten (Feed, Freunde, Trips, Freund-Profil)
+import FeedPage from './components/FeedPage';
+import FriendsPage from './components/FriendsPage';
+import FriendProfilePage from './components/FriendProfilePage';
+import TripsPage from './components/TripsPage';
 
 const App = () => {
   const [auth, setAuth] = useState({
@@ -74,7 +85,9 @@ const App = () => {
     <div className="app-root">
       <div className="app-inner">
         <Navbar user={auth.user} onLogout={handleLogout} />
+
         <Routes>
+          {/* Startseite: Map */}
           <Route
             path="/"
             element={
@@ -83,6 +96,8 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
+          {/* Profil */}
           <Route
             path="/profile"
             element={
@@ -91,6 +106,48 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
+          {/* Feed */}
+          <Route
+            path="/feed"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <FeedPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Freunde-Liste / Suche */}
+          <Route
+            path="/friends"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <FriendsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Freund-Profil (z.B. /friends/123) */}
+          <Route
+            path="/friends/:id"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <FriendProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Trips */}
+          <Route
+            path="/trips"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <TripsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin-Dashboard */}
           <Route
             path="/admin"
             element={
@@ -99,6 +156,8 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
+          {/* Auth-Routen */}
           <Route
             path="/login"
             element={
@@ -119,6 +178,8 @@ const App = () => {
               )
             }
           />
+
+          {/* Fallback: Unbekannte Route -> Map */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
