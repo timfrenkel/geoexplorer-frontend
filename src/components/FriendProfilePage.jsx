@@ -228,46 +228,49 @@ const FriendProfilePage = () => {
               (user.moodEmoji || user.username[0] || 'U')
             )}
           </div>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                flexWrap: 'wrap'
-              }}
-            >
-              <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>
+          <div style={{ 
+            flex: 1, 
+            display: "flex", 
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap"
+            }}>
+            {/* Linke Seite: Nutzername + Emoji */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 600, fontSize: "1.1rem" }}>
                 {user.username}
-              </span>
-              {user.moodEmoji && (
-                <span style={{ fontSize: '1.3rem' }}>{user.moodEmoji}</span>
-              )}
-              <span
+                </span>
+                {user.moodEmoji && (
+                <span style={{ fontSize: "1.3rem" }}>{user.moodEmoji}</span>
+                )}
+            </div>
+
+            {/* Rechte Seite: Level + Stadt/Land */}
+            <div style={{ textAlign: "right" }}>
+                <span
                 style={{
-                  fontSize: '0.8rem',
-                  padding: '0.1rem 0.5rem',
-                  borderRadius: '999px',
-                  background: '#eef2ff',
-                  color: '#4338ca'
+                    fontSize: "0.8rem",
+                    padding: "0.1rem 0.5rem",
+                    borderRadius: "999px",
+                    background: "#eef2ff",
+                    color: "#4338ca",
+                    display: "inline-block",
+                    marginBottom: "0.2rem"
                 }}
-              >
+                >
                 Level {level} · {title}
-              </span>
-            </div>
-            <div style={{ fontSize: '0.85rem', color: '#4b5563', marginTop: 4 }}>
-              {user.customStatus && (
-                <div style={{ marginBottom: 2 }}>{user.customStatus}</div>
-              )}
-              {(user.homeCity || user.homeCountry) && (
-                <div>
-                  🏡 {user.homeCity}
-                  {user.homeCity && user.homeCountry ? ', ' : ''}
-                  {user.homeCountry}
+                </span>
+
+                {(user.homeCity || user.homeCountry) && (
+                <div style={{ fontSize: "0.8rem", color: "#4b5563" }}>
+                    🏡 {user.homeCity}
+                    {user.homeCity && user.homeCountry ? ", " : ""}
+                    {user.homeCountry}
                 </div>
-              )}
+                )}
             </div>
-          </div>
+            </div>
+
         </div>
       </div>
 

@@ -25,7 +25,6 @@ const getLevelInfo = (points) => {
 
   const perLevel = increment;
   const pointsIntoLevel = points - currentLevelStart;
-  const neededForNext = Math.max(0, currentLevelStart + perLevel - points);
 
   let title = 'Neuer Entdecker';
   if (level >= 3 && level < 6) title = 'Reiselustig';
@@ -36,8 +35,7 @@ const getLevelInfo = (points) => {
     level,
     title,
     perLevel,
-    pointsIntoLevel,
-    neededForNext
+    pointsIntoLevel
   };
 };
 
@@ -67,6 +65,11 @@ const ProfilePage = () => {
   const [gamError, setGamError] = useState('');
   const [gamLoaded, setGamLoaded] = useState(false);
 
+  // Trips (Phase 2 Schritt 1: Trips im Profil anzeigen)
+  const [trips, setTrips] = useState([]);
+  const [tripsLoading, setTripsLoading] = useState(false);
+  const [tripsError, setTripsError] = useState('');
+
   useEffect(() => {
     api
       .get('/auth/me')
@@ -86,12 +89,31 @@ const ProfilePage = () => {
           isFeedPublic:
             typeof u.isFeedPublic === 'boolean' ? u.isFeedPublic : true
         });
+
+        // Trips laden, sobald User da ist
+        loadTrips();
       })
       .catch((err) => {
         console.error(err);
         setError('Fehler beim Laden des Profils.');
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadTrips = () => {
+    setTripsLoading(true);
+    setTripsError('');
+    api
+      .get('/trips')
+      .then((res) => {
+        setTrips(res.data.trips || []);
+      })
+      .catch((err) => {
+        console.error(err);
+        setTripsError('Fehler beim Laden deiner Trips.');
+      })
+      .finally(() => setTripsLoading(false));
+  };
 
   useEffect(() => {
     if (activeTab !== 'gamification' || gamLoaded) return;
@@ -175,7 +197,6 @@ const ProfilePage = () => {
     ? new Date(user.lastCheckinDate)
     : null;
 
-  // Aktuelles Bild/Banner für Anzeige
   const displayProfileImage = form.profileImageUrl || user.profileImageUrl;
   const displayBannerImage = form.bannerImageUrl || user.bannerImageUrl;
 
@@ -183,7 +204,7 @@ const ProfilePage = () => {
     <div className="page">
       <h2>Profil</h2>
 
-      {/* Header mit Banner & Avatar, Banner im Hintergrund */}
+      {/* Header mit Banner & Avatar */}
       <div
         className="card"
         style={{ padding: 0, overflow: 'hidden', marginBottom: '1rem' }}
@@ -220,7 +241,8 @@ const ProfilePage = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: displayProfileImage || user.moodEmoji ? '1.7rem' : '1.2rem',
+              fontSize:
+                displayProfileImage || user.moodEmoji ? '1.7rem' : '1.2rem',
               color: 'white',
               position: 'relative',
               zIndex: 3
@@ -236,7 +258,18 @@ const ProfilePage = () => {
               (form.moodEmoji || user.moodEmoji || user.username[0] || 'U')
             )}
           </div>
-          <div style={{ flex: 1 }}>
+
+          {/* NEU: gleiches Layout wie FriendProfile – rechts Level + Stadt/Land */}
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap'
+            }}
+          >
+            {/* Links: Username + Emoji */}
             <div
               style={{
                 display: 'flex',
@@ -248,49 +281,37 @@ const ProfilePage = () => {
               <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>
                 {user.username}
               </span>
-              {user.moodEmoji && (
-                <span style={{ fontSize: '1.3rem' }}>{user.moodEmoji}</span>
+              {(user.moodEmoji || form.moodEmoji) && (
+                <span style={{ fontSize: '1.3rem' }}>
+                  {form.moodEmoji || user.moodEmoji}
+                </span>
               )}
+            </div>
+
+            {/* Rechts: Level + Ort/Land */}
+            <div style={{ textAlign: 'right' }}>
               <span
                 style={{
                   fontSize: '0.8rem',
                   padding: '0.1rem 0.5rem',
                   borderRadius: '999px',
                   background: '#eef2ff',
-                  color: '#4338ca'
+                  color: '#4338ca',
+                  display: 'inline-block',
+                  marginBottom: '0.2rem'
                 }}
               >
                 Level {level} · {title}
               </span>
-              {streak > 0 && (
-                <span
-                  style={{
-                    fontSize: '0.8rem',
-                    padding: '0.1rem 0.5rem',
-                    borderRadius: '999px',
-                    background: '#f97316',
-                    color: 'white',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem'
-                  }}
-                >
-                  <span role="img" aria-label="Streak">
-                    🔥
-                  </span>
-                  {streak} Tage
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: '0.85rem', color: '#4b5563', marginTop: 4 }}>
-              {user.customStatus && (
-                <div style={{ marginBottom: 2 }}>{user.customStatus}</div>
-              )}
-              {(user.homeCity || user.homeCountry) && (
-                <div>
-                  🏡 {user.homeCity}
-                  {user.homeCity && user.homeCountry ? ', ' : ''}
-                  {user.homeCountry}
+
+              {(user.homeCity || user.homeCountry || form.homeCity || form.homeCountry) && (
+                <div style={{ fontSize: '0.8rem', color: '#4b5563' }}>
+                  🏡 {form.homeCity || user.homeCity}
+                  {(form.homeCity || user.homeCity) &&
+                  (form.homeCountry || user.homeCountry)
+                    ? ', '
+                    : ''}
+                  {form.homeCountry || user.homeCountry}
                 </div>
               )}
             </div>
@@ -374,6 +395,65 @@ const ProfilePage = () => {
                 ? user.bio
                 : 'Du hast noch keine Bio hinzugefügt.'}
             </p>
+          </div>
+
+          {/* NEU: Deine Trips-Übersicht (Phase 2 – Schritt 1) */}
+          <div className="card">
+            <h3>Deine Trips</h3>
+            {tripsLoading && <p>Lade Trips…</p>}
+            {tripsError && <div className="error">{tripsError}</div>}
+            {!tripsLoading && !tripsError && trips.length === 0 && (
+              <p>
+                Du hast noch keine Trips angelegt. Erstelle deinen ersten Trip
+                unter „Trips“! 🧳
+              </p>
+            )}
+            {!tripsLoading && !tripsError && trips.length > 0 && (
+              <ul className="badge-list">
+                {trips.map((trip) => (
+                  <li key={trip.id} className="badge-item">
+                    {trip.cover_image_url && (
+                      <div className="badge-icon">
+                        <img
+                          src={trip.cover_image_url}
+                          alt={trip.name}
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '0.5rem',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div className="badge-content">
+                      <strong>{trip.name}</strong>
+                      <br />
+                      {trip.description && (
+                        <small>{trip.description}</small>
+                      )}
+                      <br />
+                      <small>
+                        {trip.start_date &&
+                          `Ab ${new Date(
+                            trip.start_date
+                          ).toLocaleDateString()}`}
+                        {trip.start_date && trip.end_date && ' – '}
+                        {trip.end_date &&
+                          `Bis ${new Date(
+                            trip.end_date
+                          ).toLocaleDateString()}`}
+                      </small>
+                      <br />
+                      <small>
+                        Sichtbarkeit:{' '}
+                        {trip.is_public ? 'Öffentlich' : 'Privat'}
+                      </small>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="card">
