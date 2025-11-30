@@ -3,9 +3,37 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api';
 
+// Gleiches Level-System wie im eigenen Profil
+const getLevelInfo = (points) => {
+  let level = 1;
+  let currentLevelStart = 0;
+  let increment = 3;
+
+  while (points >= currentLevelStart + increment) {
+    currentLevelStart += increment;
+    level += 1;
+    increment += 3;
+  }
+
+  const perLevel = increment;
+  const pointsIntoLevel = points - currentLevelStart;
+
+  let title = 'Neuer Entdecker';
+  if (level >= 3 && level < 6) title = 'Reiselustig';
+  if (level >= 6 && level < 10) title = 'Globetrotter';
+  if (level >= 10) title = 'Legendärer Explorer';
+
+  return {
+    level,
+    title,
+    perLevel,
+    pointsIntoLevel
+  };
+};
+
 const FriendProfilePage = () => {
   const { id } = useParams();
-  const [data, setData] = useState(null); // { user, relation, isFriend, isSelf, canSeeFeed, checkins }
+  const [data, setData] = useState(null); // { user, relation, isFriend, isSelf, canSeeFeed, points, achievements, checkins }
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -113,16 +141,31 @@ const FriendProfilePage = () => {
   if (error || !data) {
     return (
       <div className="page">
-        <div className="error">{error || 'Profil konnte nicht geladen werden.'}</div>
+        <div className="error">
+          {error || 'Profil konnte nicht geladen werden.'}
+        </div>
       </div>
     );
   }
 
-  const { user, canSeeFeed, checkins } = data;
+  const {
+    user,
+    canSeeFeed,
+    checkins,
+    points = 0,
+    achievements = []
+  } = data;
+
   const streak = user.checkinStreakDays || 0;
   const lastCheckinDate = user.lastCheckinDate
     ? new Date(user.lastCheckinDate)
     : null;
+
+  const { level, title, perLevel, pointsIntoLevel } = getLevelInfo(points);
+  const levelProgressPercent =
+    perLevel > 0
+      ? Math.min(100, Math.round((pointsIntoLevel / perLevel) * 100))
+      : 0;
 
   const displayProfileImage = user.profileImageUrl;
   const displayBannerImage = user.bannerImageUrl;
@@ -131,6 +174,7 @@ const FriendProfilePage = () => {
     <div className="page">
       <h2>Profil von {user.username}</h2>
 
+      {/* Header mit Banner & Avatar */}
       <div
         className="card"
         style={{ padding: 0, overflow: 'hidden', marginBottom: '1rem' }}
@@ -168,7 +212,8 @@ const FriendProfilePage = () => {
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              fontSize: displayProfileImage || user.moodEmoji ? '1.7rem' : '1.2rem',
+              fontSize:
+                displayProfileImage || user.moodEmoji ? '1.7rem' : '1.2rem',
               position: 'relative',
               zIndex: 3
             }}
@@ -198,6 +243,17 @@ const FriendProfilePage = () => {
               {user.moodEmoji && (
                 <span style={{ fontSize: '1.3rem' }}>{user.moodEmoji}</span>
               )}
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  padding: '0.1rem 0.5rem',
+                  borderRadius: '999px',
+                  background: '#eef2ff',
+                  color: '#4338ca'
+                }}
+              >
+                Level {level} · {title}
+              </span>
             </div>
             <div style={{ fontSize: '0.85rem', color: '#4b5563', marginTop: 4 }}>
               {user.customStatus && (
@@ -215,9 +271,9 @@ const FriendProfilePage = () => {
         </div>
       </div>
 
-      {/* Beziehung & Actions */}
+      {/* Beziehung & Stats */}
       <div className="card">
-        <h3>Beziehung</h3>
+        <h3>Beziehung & Stats</h3>
         <p>{renderRelationLabel()}</p>
 
         {!data.isSelf && (
@@ -278,6 +334,37 @@ const FriendProfilePage = () => {
           </div>
         )}
 
+        <div style={{ marginTop: '0.75rem', fontSize: '0.9rem' }}>
+          <p>
+            <strong>Punkte:</strong> {points}
+          </p>
+          <p>
+            <strong>Level:</strong> {level} – {title}
+          </p>
+          <p>
+            <strong>Fortschritt zu Level {level + 1}:</strong>{' '}
+            {pointsIntoLevel} / {perLevel} Punkte
+          </p>
+          <div className="progress">
+            <div
+              className="progress-bar"
+              style={{ width: `${levelProgressPercent}%` }}
+            />
+          </div>
+          {streak > 0 && (
+            <p style={{ marginTop: '0.5rem' }}>
+              <strong>Streak:</strong> 🔥 {streak} Tage
+              {lastCheckinDate && (
+                <>
+                  {' '}
+                  (letzter Check-in:{' '}
+                  {lastCheckinDate.toLocaleDateString()})
+                </>
+              )}
+            </p>
+          )}
+        </div>
+
         <p style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
           <strong>Profil-Sichtbarkeit:</strong>{' '}
           {user.isProfilePublic ? 'Öffentlich' : 'Nur für Freunde'}
@@ -285,19 +372,6 @@ const FriendProfilePage = () => {
           <strong>Feed:</strong>{' '}
           {user.isFeedPublic ? 'Für Freunde sichtbar' : 'Privat'}
         </p>
-
-        {streak > 0 && (
-          <p style={{ marginTop: '0.25rem', fontSize: '0.85rem' }}>
-            <strong>Streak:</strong> 🔥 {streak} Tage
-            {lastCheckinDate && (
-              <>
-                {' '}
-                (letzter Check-in:{' '}
-                {lastCheckinDate.toLocaleDateString()})
-              </>
-            )}
-          </p>
-        )}
       </div>
 
       {/* Bio */}
@@ -310,7 +384,38 @@ const FriendProfilePage = () => {
         </p>
       </div>
 
-      {/* Check-ins / Feed-Ausschnitt */}
+      {/* Erfolge */}
+      <div className="card">
+        <h3>Erfolge</h3>
+        {achievements.length === 0 && (
+          <p>Noch keine Erfolge freigeschaltet.</p>
+        )}
+        {achievements.length > 0 && (
+          <ul className="badge-list">
+            {achievements.map((a) => (
+              <li key={a.id} className="badge-item">
+                <div className="badge-icon">
+                  {a.icon || '🏆'}
+                </div>
+                <div className="badge-content">
+                  <strong>{a.name}</strong>
+                  <br />
+                  <small>{a.description}</small>
+                  <br />
+                  <small>
+                    Freigeschaltet am:{' '}
+                    {a.unlocked_at
+                      ? new Date(a.unlocked_at).toLocaleString()
+                      : 'Unbekannt'}
+                  </small>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Reise-Aktivität */}
       <div className="card">
         <h3>Reise-Aktivität</h3>
         {!canSeeFeed && (
