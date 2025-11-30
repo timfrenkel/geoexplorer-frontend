@@ -60,13 +60,14 @@ const MapPage = () => {
   const [locatingNearest, setLocatingNearest] = useState(false);
   const [focusedLocation, setFocusedLocation] = useState(null);
 
-  // NEU: Modal für Foto + Text nach Check-in
-  const [memoryModalOpen, setMemoryModalOpen] = useState(false);
-  const [memoryLocation, setMemoryLocation] = useState(null);
-  const [memoryText, setMemoryText] = useState('');
-  const [memoryImage, setMemoryImage] = useState(null);
-  const [memorySubmitting, setMemorySubmitting] = useState(false);
-  const [memoryStatus, setMemoryStatus] = useState('');
+  // Check-in Dialog
+  const [checkinModal, setCheckinModal] = useState({
+    open: false,
+    location: null,
+    message: '',
+    imageUrl: '',
+    submitting: false
+  });
 
   const defaultCenter = [52.52, 13.405]; // Berlin als Startansicht
 
@@ -93,65 +94,24 @@ const MapPage = () => {
     loadData();
   }, []);
 
-  const openMemoryModal = (location) => {
-    setMemoryLocation(location);
-    setMemoryText('');
-    setMemoryImage(null);
-    setMemoryStatus('');
-    setMemoryModalOpen(true);
+  const openCheckinModal = (location) => {
+    setStatus('');
+    setGeoError('');
+    setCheckinModal({
+      open: true,
+      location,
+      message: '',
+      imageUrl: '',
+      submitting: false
+    });
   };
 
-  const closeMemoryModal = () => {
-    setMemoryModalOpen(false);
-    setMemoryLocation(null);
-    setMemoryText('');
-    setMemoryImage(null);
-    setMemoryStatus('');
+  const closeCheckinModal = () => {
+    setCheckinModal((prev) => ({ ...prev, open: false }));
   };
 
-  const handleMemoryImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setMemoryImage(file);
-  };
-
-  const handleMemorySubmit = async (e) => {
-    e.preventDefault();
-    if (!memoryLocation) return;
-
-    setMemorySubmitting(true);
-    setMemoryStatus('');
-
-    try {
-      const formData = new FormData();
-      formData.append('text', memoryText || '');
-      if (memoryImage) {
-        formData.append('image', memoryImage);
-      }
-
-      // HINWEIS: Diesen Endpoint musst du im Backend implementieren.
-      // Idee: POST /api/locations/:id/memory
-      await api.post(`/locations/${memoryLocation.id}/memory`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      setMemoryStatus('Erinnerung gespeichert.');
-      // Modal nach kurzer Bestätigung schließen
-      setTimeout(() => {
-        closeMemoryModal();
-      }, 600);
-    } catch (err) {
-      console.error(err);
-      setMemoryStatus(
-        err.response?.data?.message ||
-          'Erinnerung konnte nicht gespeichert werden.'
-      );
-    } finally {
-      setMemorySubmitting(false);
-    }
-  };
-
-  const handleCheckin = (location) => {
+  const handleConfirmCheckin = () => {
+    if (!checkinModal.location) return;
     setStatus('');
     setGeoError('');
 
@@ -160,38 +120,47 @@ const MapPage = () => {
       return;
     }
 
+    setCheckinModal((prev) => ({ ...prev, submitting: true }));
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
 
         try {
-          const res = await api.post(`/locations/${location.id}/checkin`, {
-            latitude,
-            longitude
-          });
+          const res = await api.post(
+            `/locations/${checkinModal.location.id}/checkin`,
+            {
+              latitude,
+              longitude,
+              // werden vom Backend genutzt oder ignoriert, je nach Implementierung
+              message: checkinModal.message.trim() || '',
+              imageUrl: checkinModal.imageUrl.trim() || ''
+            }
+          );
+
           setStatus(res.data.message || 'Check-in erfolgreich!');
-
-          // Nach erfolgreichem Check-in als besucht markieren
-          setVisitedIds((prev) => new Set(prev).add(location.id));
-
-          // NACH Check-in: Möglichkeit für Foto + Text zu diesem Ort
-          openMemoryModal(location);
+          setVisitedIds((prev) => {
+            const next = new Set(prev);
+            next.add(checkinModal.location.id);
+            return next;
+          });
+          setCheckinModal((prev) => ({ ...prev, open: false, submitting: false }));
         } catch (err) {
           console.error(err);
           setStatus(
             err.response?.data?.message || 'Check-in fehlgeschlagen.'
           );
+          setCheckinModal((prev) => ({ ...prev, submitting: false }));
         }
       },
       (err) => {
         console.error(err);
         if (err.code === err.PERMISSION_DENIED) {
-          setGeoError(
-            'Standortfreigabe verweigert. Bitte erlaube den Zugriff.'
-          );
+          setGeoError('Standortfreigabe verweigert. Bitte erlaube den Zugriff.');
         } else {
           setGeoError('Fehler beim Abrufen deines Standorts.');
         }
+        setCheckinModal((prev) => ({ ...prev, submitting: false }));
       },
       {
         enableHighAccuracy: true,
@@ -236,9 +205,7 @@ const MapPage = () => {
       (err) => {
         console.error(err);
         if (err.code === err.PERMISSION_DENIED) {
-          setGeoError(
-            'Standortfreigabe verweigert. Bitte erlaube den Zugriff.'
-          );
+          setGeoError('Standortfreigabe verweigert. Bitte erlaube den Zugriff.');
         } else {
           setGeoError('Fehler beim Abrufen deines Standorts.');
         }
@@ -311,7 +278,7 @@ const MapPage = () => {
         </div>
 
         {loading ? (
-          <div className="center">Lade Sehenswürdigkeiten...</div>
+          <div className="center">Lade Sehenswürdigkeiten.</div>
         ) : (
           <MapContainer
             center={defaultCenter}
@@ -354,19 +321,17 @@ const MapPage = () => {
                     Radius: {loc.radius_m}m
                     <br />
                     {isVisited && (
-                      <span
-                        style={{ color: '#16a34a', fontSize: '0.85rem' }}
-                      >
+                      <span style={{ color: '#16a34a', fontSize: '0.85rem' }}>
                         ✅ Badge bereits gesammelt
                         <br />
                       </span>
                     )}
                     <button
                       className="btn-primary btn-small"
-                      onClick={() => handleCheckin(loc)}
+                      onClick={() => openCheckinModal(loc)}
                       disabled={isVisited}
                     >
-                      {isVisited ? 'Schon eingecheckt' : 'Check-in & Erinnerung'}
+                      {isVisited ? 'Schon eingecheckt' : 'Check-in'}
                     </button>
                   </Popup>
                 </Marker>
@@ -381,57 +346,87 @@ const MapPage = () => {
           {status && <div className="status">{status}</div>}
         </div>
 
-        {/* MODAL: Foto + Text zu diesem Check-in */}
-        {memoryModalOpen && memoryLocation && (
-          <div className="memory-modal-backdrop">
-            <div className="memory-modal">
-              <div className="memory-modal-header">
-                <h3>Erinnerung speichern</h3>
-                <p>
-                  {memoryLocation.name}: Füge ein Foto und eine kleine Notiz zu
-                  diesem Besuch hinzu.
-                </p>
-              </div>
-              <form onSubmit={handleMemorySubmit} className="memory-modal-body">
+        {/* Check-in Modal */}
+        {checkinModal.open && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.55)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2000
+            }}
+          >
+            <div
+              className="card"
+              style={{
+                maxWidth: '420px',
+                width: '100%',
+                margin: '0 1rem'
+              }}
+            >
+              <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>
+                Check-in bei {checkinModal.location?.name}
+              </h3>
+              <p style={{ fontSize: '0.85rem', marginTop: 0 }}>
+                Optional: kurze Nachricht und ein Bild-Link zu deinem Erlebnis.
+              </p>
+              <div className="auth-form">
                 <label>
-                  Bild (direkt mit Kamera möglich)
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleMemoryImageChange}
-                  />
-                </label>
-                <label>
-                  Notiz
+                  Nachricht (optional)
                   <textarea
                     rows={3}
-                    placeholder="Wie war dein Erlebnis an diesem Ort?"
-                    value={memoryText}
-                    onChange={(e) => setMemoryText(e.target.value)}
+                    value={checkinModal.message}
+                    onChange={(e) =>
+                      setCheckinModal((prev) => ({
+                        ...prev,
+                        message: e.target.value
+                      }))
+                    }
                   />
                 </label>
-
-                {memoryStatus && <div className="status">{memoryStatus}</div>}
-
-                <div className="memory-modal-actions">
-                  <button
-                    type="button"
-                    className="btn-small"
-                    onClick={closeMemoryModal}
-                    disabled={memorySubmitting}
-                  >
-                    Später
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                    disabled={memorySubmitting}
-                  >
-                    {memorySubmitting ? 'Speichere...' : 'Speichern'}
-                  </button>
-                </div>
-              </form>
+                <label>
+                  Bild-URL (optional)
+                  <input
+                    type="url"
+                    placeholder="https://…"
+                    value={checkinModal.imageUrl}
+                    onChange={(e) =>
+                      setCheckinModal((prev) => ({
+                        ...prev,
+                        imageUrl: e.target.value
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '0.5rem',
+                  marginTop: '0.5rem'
+                }}
+              >
+                <button
+                  className="btn-small btn-danger"
+                  type="button"
+                  onClick={closeCheckinModal}
+                  disabled={checkinModal.submitting}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  className="btn-primary"
+                  type="button"
+                  onClick={handleConfirmCheckin}
+                  disabled={checkinModal.submitting}
+                >
+                  {checkinModal.submitting ? 'Check-in läuft…' : 'Check-in bestätigen'}
+                </button>
+              </div>
             </div>
           </div>
         )}

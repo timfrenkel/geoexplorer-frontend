@@ -10,6 +10,8 @@ import MapPage from './components/MapPage';
 import ProfilePage from './components/ProfilePage';
 import AdminDashboard from './components/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import FeedPage from './components/FeedPage';
+import FriendsPage from './components/FriendsPage';
 
 const App = () => {
   const [auth, setAuth] = useState({
@@ -50,7 +52,7 @@ const App = () => {
   };
 
   if (auth.loading) {
-    return <div className="center">Lade...</div>;
+    return <div className="center">Lade.</div>;
   }
 
   return (
@@ -66,6 +68,25 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/feed"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <FeedPage currentUser={auth.user} />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/friends"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <FriendsPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/profile"
             element={
@@ -74,6 +95,7 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/admin"
             element={
@@ -82,6 +104,7 @@ const App = () => {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/login"
             element={
