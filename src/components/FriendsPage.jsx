@@ -3,76 +3,129 @@ import React, { useEffect, useState } from 'react';
 import api from '../api';
 
 const FriendsPage = () => {
-  const [friends, setFriends] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [loadingFriends, setLoadingFriends] = useState(true);
-  const [searching, setSearching] = useState(false);
-  const [status, setStatus] = useState('');
-  const [error, setError] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
-  const loadFriends = async () => {
-    setLoadingFriends(true);
-    setError('');
-    try {
-      const res = await api.get('/friends');
-      setFriends(res.data.friends || []);
-    } catch (err) {
-      console.error(err);
-      setError('Fehler beim Laden deiner Freunde.');
-    } finally {
-      setLoadingFriends(false);
-    }
+  const [friends, setFriends] = useState([]);
+  const [requests, setRequests] = useState({ incoming: [], outgoing: [] });
+  const [loadingLists, setLoadingLists] = useState(true);
+  const [listError, setListError] = useState('');
+
+  // Listen laden
+  const loadLists = () => {
+    setLoadingLists(true);
+    setListError('');
+    Promise.all([api.get('/friends'), api.get('/friends/requests')])
+      .then(([friendsRes, reqRes]) => {
+        setFriends(friendsRes.data.friends || []);
+        setRequests({
+          incoming: reqRes.data.incoming || [],
+          outgoing: reqRes.data.outgoing || []
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+        setListError('Fehler beim Laden der Freunde/Anfragen.');
+      })
+      .finally(() => setLoadingLists(false));
   };
 
   useEffect(() => {
-    loadFriends();
+    loadLists();
   }, []);
 
+  // Suche
   const handleSearch = async (e) => {
     e.preventDefault();
-    setStatus('');
-    setError('');
-    setSearching(true);
-    setSearchResults([]);
-
-    const q = searchTerm.trim();
-    if (!q) {
-      setSearching(false);
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
       return;
     }
-
+    setSearchLoading(true);
+    setSearchError('');
     try {
       const res = await api.get('/friends/search', {
-        params: { q }
+        params: { q: searchQuery.trim() }
       });
-      setSearchResults(res.data.users || []);
+      setSearchResults(res.data.results || []);
     } catch (err) {
       console.error(err);
-      setError('Fehler bei der Freundes-Suche.');
+      setSearchError('Fehler bei der Suche.');
     } finally {
-      setSearching(false);
+      setSearchLoading(false);
     }
   };
 
+  // Anfrage senden
   const handleSendRequest = async (userId) => {
-    setStatus('');
-    setError('');
     try {
-      const res = await api.post(`/friends/request/${userId}`);
-      setStatus(res.data.message || 'Freundschaftsanfrage gesendet.');
-
-      // Status im UI aktualisieren (damit nicht weiter "Anfrage senden" steht)
-      setSearchResults((prev) =>
-        prev.map((u) =>
-          u.id === userId ? { ...u, status: 'pending' } : u
-        )
-      );
+      await api.post('/friends/requests', { friendId: userId });
+      // Listen & Suchergebnisse neu laden
+      loadLists();
+      handleRefreshSearchRow(userId);
     } catch (err) {
       console.error(err);
-      setError(
-        err.response?.data?.message || 'Fehler beim Versenden der Anfrage.'
+      alert(
+        err.response?.data?.message ||
+          'Fehler beim Senden der Freundschaftsanfrage.'
       );
+    }
+  };
+
+  // Anfrage annehmen
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      await api.post(`/friends/requests/${requestId}/accept`);
+      loadLists();
+    } catch (err) {
+      console.error(err);
+      alert(
+        err.response?.data?.message ||
+          'Fehler beim Annehmen der Anfrage.'
+      );
+    }
+  };
+
+  // Anfrage ablehnen / zurückziehen
+  const handleRejectRequest = async (requestId) => {
+    if (!window.confirm('Diese Anfrage entfernen?')) return;
+    try {
+      await api.post(`/friends/requests/${requestId}/reject`);
+      loadLists();
+    } catch (err) {
+      console.error(err);
+      alert(
+        err.response?.data?.message ||
+          'Fehler beim Ändern der Anfrage.'
+      );
+    }
+  };
+
+  // Nach dem Senden einer Anfrage die Suche aktualisieren (Status ändern)
+  const handleRefreshSearchRow = async (userId) => {
+    if (!searchQuery.trim()) return;
+    try {
+      const res = await api.get('/friends/search', {
+        params: { q: searchQuery.trim() }
+      });
+      setSearchResults(res.data.results || []);
+    } catch {
+      // ignore
+    }
+  };
+
+  const renderRelationLabel = (relation) => {
+    switch (relation) {
+      case 'friends':
+        return 'Freunde ✅';
+      case 'pending_outgoing':
+        return 'Anfrage gesendet ⏳';
+      case 'pending_incoming':
+        return 'Anfrage erhalten ⏳';
+      default:
+        return 'Kein Kontakt';
     }
   };
 
@@ -80,73 +133,84 @@ const FriendsPage = () => {
     <div className="page">
       <h2>Freunde</h2>
 
-      {/* Eigene Freundesliste */}
-      <div className="card">
-        <h3>Deine Freunde</h3>
-        {loadingFriends && <div>Lade Freunde...</div>}
-        {!loadingFriends && friends.length === 0 && (
-          <p>Noch keine Freunde – such dir ein paar Mit-Explorer 👀</p>
-        )}
-        <ul className="badge-list">
-          {friends.map((f) => (
-            <li key={f.id} className="badge-item">
-              <strong>{f.username}</strong>
-            </li>
-          ))}
-        </ul>
-      </div>
-
       {/* Suche */}
       <div className="card">
         <h3>Freunde suchen</h3>
-        <form onSubmit={handleSearch} className="auth-form">
+        <form
+          className="auth-form"
+          onSubmit={handleSearch}
+          style={{ marginBottom: '0.5rem' }}
+        >
           <label>
-            Benutzername
+            Nutzername
             <input
               type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="z. B. tim_frenkel"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Benutzername eingeben..."
             />
           </label>
-          <button type="submit" className="btn-primary" disabled={searching}>
-            {searching ? 'Suche...' : 'Suchen'}
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={searchLoading}
+          >
+            {searchLoading ? 'Suche...' : 'Suchen'}
           </button>
         </form>
-
-        {searching && <div>Lade Suchergebnisse...</div>}
+        {searchError && (
+          <div className="error" style={{ marginTop: '0.5rem' }}>
+            {searchError}
+          </div>
+        )}
 
         {searchResults.length > 0 && (
-          <ul className="badge-list" style={{ marginTop: '0.5rem' }}>
+          <ul className="badge-list">
             {searchResults.map((u) => (
               <li key={u.id} className="badge-item">
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.5rem',
-                    width: '100%'
-                  }}
-                >
-                  <span>{u.username}</span>
-
-                  {u.status === 'accepted' ? (
-                    <span style={{ color: '#16a34a', fontSize: '0.85rem' }}>
-                      ✓ Bereits befreundet
-                    </span>
-                  ) : u.status === 'pending' ? (
-                    <span style={{ color: '#f59e0b', fontSize: '0.85rem' }}>
-                      ⏳ Anfrage gesendet
-                    </span>
-                  ) : (
+                <div className="badge-icon">👤</div>
+                <div className="badge-content">
+                  <strong>{u.username}</strong>
+                  <br />
+                  <small>{renderRelationLabel(u.relation)}</small>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {u.relation === 'none' && (
                     <button
-                      className="btn-small"
                       type="button"
+                      className="btn-small"
                       onClick={() => handleSendRequest(u.id)}
                     >
                       Anfrage senden
                     </button>
+                  )}
+                  {u.relation === 'pending_incoming' && u.requestId && (
+                    <>
+                      <button
+                        type="button"
+                        className="btn-small"
+                        onClick={() => handleAcceptRequest(u.requestId)}
+                      >
+                        Annehmen
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-small btn-danger"
+                        onClick={() => handleRejectRequest(u.requestId)}
+                      >
+                        Ablehnen
+                      </button>
+                    </>
+                  )}
+                  {u.relation === 'pending_outgoing' && (
+                    <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                      Anfrage ausstehend
+                    </span>
+                  )}
+                  {u.relation === 'friends' && (
+                    <span style={{ fontSize: '0.8rem', color: '#16a34a' }}>
+                      Ihr seid Freunde
+                    </span>
                   )}
                 </div>
               </li>
@@ -155,8 +219,104 @@ const FriendsPage = () => {
         )}
       </div>
 
-      {status && <div className="status">{status}</div>}
-      {error && <div className="error">{error}</div>}
+      {/* Listen */}
+      <div className="card">
+        <h3>Deine Kontakte</h3>
+        {loadingLists && <p>Lade Freunde und Anfragen…</p>}
+        {listError && <div className="error">{listError}</div>}
+
+        {!loadingLists && !listError && (
+          <>
+            <h4>Eingehende Anfragen</h4>
+            {requests.incoming.length === 0 && (
+              <p>Keine offenen Anfragen.</p>
+            )}
+            {requests.incoming.length > 0 && (
+              <ul className="badge-list">
+                {requests.incoming.map((r) => (
+                  <li key={r.id} className="badge-item">
+                    <div className="badge-icon">📩</div>
+                    <div className="badge-content">
+                      <strong>{r.fromUsername}</strong>
+                      <br />
+                      <small>
+                        angefragt am{' '}
+                        {new Date(r.createdAt).toLocaleString()}
+                      </small>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="btn-small"
+                        onClick={() => handleAcceptRequest(r.id)}
+                      >
+                        Annehmen
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-small btn-danger"
+                        onClick={() => handleRejectRequest(r.id)}
+                      >
+                        Ablehnen
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <h4 style={{ marginTop: '1rem' }}>Ausgehende Anfragen</h4>
+            {requests.outgoing.length === 0 && (
+              <p>Du hast keine ausstehenden Anfragen gesendet.</p>
+            )}
+            {requests.outgoing.length > 0 && (
+              <ul className="badge-list">
+                {requests.outgoing.map((r) => (
+                  <li key={r.id} className="badge-item">
+                    <div className="badge-icon">📤</div>
+                    <div className="badge-content">
+                      <strong>{r.toUsername}</strong>
+                      <br />
+                      <small>
+                        gesendet am{' '}
+                        {new Date(r.createdAt).toLocaleString()}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-small btn-danger"
+                      onClick={() => handleRejectRequest(r.id)}
+                    >
+                      Zurückziehen
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <h4 style={{ marginTop: '1rem' }}>Freunde</h4>
+            {friends.length === 0 && <p>Du hast noch keine Freunde hinzugefügt.</p>}
+            {friends.length > 0 && (
+              <ul className="badge-list">
+                {friends.map((f) => (
+                  <li key={f.id} className="badge-item">
+                    <div className="badge-icon">🤝</div>
+                    <div className="badge-content">
+                      <strong>{f.username}</strong>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };
