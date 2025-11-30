@@ -12,6 +12,8 @@ import AdminDashboard from './components/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import TripsPage from './components/TripsPage';
 import FriendsPage from './components/FriendsPage';
+import FriendProfilePage from './components/FriendProfilePage';
+import FeedPage from './components/FeedPage';
 
 const App = () => {
   const [auth, setAuth] = useState({
@@ -78,6 +80,14 @@ const App = () => {
             }
           />
           <Route
+            path="/feed"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <FeedPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <ProtectedRoute user={auth.user}>
@@ -98,6 +108,14 @@ const App = () => {
             element={
               <ProtectedRoute user={auth.user}>
                 <FriendsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/friends/:id"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <FriendProfilePage />
               </ProtectedRoute>
             }
           />

@@ -12,6 +12,7 @@ const Navbar = ({ user, onLogout }) => {
         {user ? (
           <>
             <Link to="/">Karte</Link>
+            <Link to="/feed">Feed</Link>
             <Link to="/trips">Trips</Link>
             <Link to="/friends">Freunde</Link>
             <Link to="/profile">Profil</Link>

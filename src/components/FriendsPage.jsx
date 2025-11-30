@@ -1,5 +1,6 @@
 // frontend/src/components/FriendsPage.jsx
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api';
 
 const FriendsPage = () => {
@@ -13,7 +14,6 @@ const FriendsPage = () => {
   const [loadingLists, setLoadingLists] = useState(true);
   const [listError, setListError] = useState('');
 
-  // Listen laden
   const loadLists = () => {
     setLoadingLists(true);
     setListError('');
@@ -36,7 +36,6 @@ const FriendsPage = () => {
     loadLists();
   }, []);
 
-  // Suche
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
@@ -58,11 +57,9 @@ const FriendsPage = () => {
     }
   };
 
-  // Anfrage senden
   const handleSendRequest = async (userId) => {
     try {
       await api.post('/friends/requests', { friendId: userId });
-      // Listen & Suchergebnisse neu laden
       loadLists();
       handleRefreshSearchRow(userId);
     } catch (err) {
@@ -74,7 +71,6 @@ const FriendsPage = () => {
     }
   };
 
-  // Anfrage annehmen
   const handleAcceptRequest = async (requestId) => {
     try {
       await api.post(`/friends/requests/${requestId}/accept`);
@@ -88,7 +84,6 @@ const FriendsPage = () => {
     }
   };
 
-  // Anfrage ablehnen / zurückziehen
   const handleRejectRequest = async (requestId) => {
     if (!window.confirm('Diese Anfrage entfernen?')) return;
     try {
@@ -103,7 +98,6 @@ const FriendsPage = () => {
     }
   };
 
-  // Nach dem Senden einer Anfrage die Suche aktualisieren (Status ändern)
   const handleRefreshSearchRow = async (userId) => {
     if (!searchQuery.trim()) return;
     try {
@@ -133,7 +127,6 @@ const FriendsPage = () => {
     <div className="page">
       <h2>Freunde</h2>
 
-      {/* Suche */}
       <div className="card">
         <h3>Freunde suchen</h3>
         <form
@@ -170,7 +163,16 @@ const FriendsPage = () => {
               <li key={u.id} className="badge-item">
                 <div className="badge-icon">👤</div>
                 <div className="badge-content">
-                  <strong>{u.username}</strong>
+                  <Link
+                    to={`/friends/${u.id}`}
+                    style={{
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      color: '#111827'
+                    }}
+                  >
+                    {u.username}
+                  </Link>
                   <br />
                   <small>{renderRelationLabel(u.relation)}</small>
                 </div>
@@ -219,7 +221,6 @@ const FriendsPage = () => {
         )}
       </div>
 
-      {/* Listen */}
       <div className="card">
         <h3>Deine Kontakte</h3>
         {loadingLists && <p>Lade Freunde und Anfragen…</p>}
@@ -237,7 +238,16 @@ const FriendsPage = () => {
                   <li key={r.id} className="badge-item">
                     <div className="badge-icon">📩</div>
                     <div className="badge-content">
-                      <strong>{r.fromUsername}</strong>
+                      <Link
+                        to={`/friends/${r.fromUserId}`}
+                        style={{
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                          color: '#111827'
+                        }}
+                      >
+                        {r.fromUsername}
+                      </Link>
                       <br />
                       <small>
                         angefragt am{' '}
@@ -281,7 +291,16 @@ const FriendsPage = () => {
                   <li key={r.id} className="badge-item">
                     <div className="badge-icon">📤</div>
                     <div className="badge-content">
-                      <strong>{r.toUsername}</strong>
+                      <Link
+                        to={`/friends/${r.toUserId}`}
+                        style={{
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                          color: '#111827'
+                        }}
+                      >
+                        {r.toUsername}
+                      </Link>
                       <br />
                       <small>
                         gesendet am{' '}
@@ -301,14 +320,25 @@ const FriendsPage = () => {
             )}
 
             <h4 style={{ marginTop: '1rem' }}>Freunde</h4>
-            {friends.length === 0 && <p>Du hast noch keine Freunde hinzugefügt.</p>}
+            {friends.length === 0 && (
+              <p>Du hast noch keine Freunde hinzugefügt.</p>
+            )}
             {friends.length > 0 && (
               <ul className="badge-list">
                 {friends.map((f) => (
                   <li key={f.id} className="badge-item">
                     <div className="badge-icon">🤝</div>
                     <div className="badge-content">
-                      <strong>{f.username}</strong>
+                      <Link
+                        to={`/friends/${f.id}`}
+                        style={{
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                          color: '#111827'
+                        }}
+                      >
+                        {f.username}
+                      </Link>
                     </div>
                   </li>
                 ))}
