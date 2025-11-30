@@ -36,14 +36,15 @@ const FriendsPage = () => {
     setSearching(true);
     setSearchResults([]);
 
-    if (!searchTerm.trim()) {
+    const q = searchTerm.trim();
+    if (!q) {
       setSearching(false);
       return;
     }
 
     try {
       const res = await api.get('/friends/search', {
-        params: { q: searchTerm.trim() }
+        params: { q }
       });
       setSearchResults(res.data.users || []);
     } catch (err) {
@@ -60,6 +61,13 @@ const FriendsPage = () => {
     try {
       const res = await api.post(`/friends/request/${userId}`);
       setStatus(res.data.message || 'Freundschaftsanfrage gesendet.');
+
+      // Status im UI aktualisieren (damit nicht weiter "Anfrage senden" steht)
+      setSearchResults((prev) =>
+        prev.map((u) =>
+          u.id === userId ? { ...u, status: 'pending' } : u
+        )
+      );
     } catch (err) {
       console.error(err);
       setError(
@@ -76,7 +84,7 @@ const FriendsPage = () => {
       <div className="card">
         <h3>Deine Freunde</h3>
         {loadingFriends && <div>Lade Freunde...</div>}
-        {friends.length === 0 && !loadingFriends && (
+        {!loadingFriends && friends.length === 0 && (
           <p>Noch keine Freunde – such dir ein paar Mit-Explorer 👀</p>
         )}
         <ul className="badge-list">
@@ -101,8 +109,8 @@ const FriendsPage = () => {
               placeholder="z. B. tim_frenkel"
             />
           </label>
-          <button type="submit" className="btn-primary">
-            Suchen
+          <button type="submit" className="btn-primary" disabled={searching}>
+            {searching ? 'Suche...' : 'Suchen'}
           </button>
         </form>
 
@@ -117,17 +125,29 @@ const FriendsPage = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '0.5rem'
+                    gap: '0.5rem',
+                    width: '100%'
                   }}
                 >
                   <span>{u.username}</span>
-                  <button
-                    className="btn-small"
-                    type="button"
-                    onClick={() => handleSendRequest(u.id)}
-                  >
-                    Anfrage senden
-                  </button>
+
+                  {u.status === 'accepted' ? (
+                    <span style={{ color: '#16a34a', fontSize: '0.85rem' }}>
+                      ✓ Bereits befreundet
+                    </span>
+                  ) : u.status === 'pending' ? (
+                    <span style={{ color: '#f59e0b', fontSize: '0.85rem' }}>
+                      ⏳ Anfrage gesendet
+                    </span>
+                  ) : (
+                    <button
+                      className="btn-small"
+                      type="button"
+                      onClick={() => handleSendRequest(u.id)}
+                    >
+                      Anfrage senden
+                    </button>
+                  )}
                 </div>
               </li>
             ))}
