@@ -6,82 +6,70 @@ const LoginPage = ({ onLogin }) => {
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSubmitting(true);
+    setLoading(true);
 
     try {
       const res = await api.post('/auth/login', {
         emailOrUsername,
         password
       });
-      onLogin(res.data.token, res.data.user);
+
+      const { token, user } = res.data || {};
+
+      if (!token || !user) {
+        setError('Unerwartete Antwort vom Server.');
+        setLoading(false);
+        return;
+      }
+
+      // 🔐 Einheitlich: Token unter "token" speichern
+      localStorage.setItem('token', token);
+
+      if (onLogin) {
+        onLogin(user);
+      }
     } catch (err) {
-      setError(
-        err.response?.data?.message || 'Login fehlgeschlagen.'
-      );
+      console.error(err);
+      const msg =
+        err.response?.data?.message ||
+        'Login fehlgeschlagen. Bitte prüfe deine Eingaben.';
+      setError(msg);
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container fade-in">
-      <h2>Willkommen zurück 👋</h2>
-      <p className="auth-subtitle">
-        Logge dich ein, um deine Badges zu sehen und neue Sehenswürdigkeiten
-        in deiner Stadt zu entdecken.
-      </p>
-
-      {error && <div className="error">{error}</div>}
-
-      <form onSubmit={handleSubmit} className="auth-form slide-up">
+    <div className="page auth-page">
+      <h2>Login</h2>
+      <form className="auth-form" onSubmit={handleSubmit}>
         <label>
-          E-Mail oder Benutzername
+          E-Mail oder Nutzername
           <input
             type="text"
-            placeholder="z.B. max@mail.de oder max123"
             value={emailOrUsername}
             onChange={(e) => setEmailOrUsername(e.target.value)}
             required
           />
-          <small style={{ color: '#6b7280', fontSize: '0.8rem' }}>
-            Du kannst dich entweder mit deiner E-Mail-Adresse oder deinem
-            Benutzernamen einloggen.
-          </small>
         </label>
-
         <label>
           Passwort
           <input
             type="password"
-            placeholder="Dein Passwort"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
         </label>
-
-        <button
-          type="submit"
-          className="btn-primary"
-          disabled={submitting}
-        >
-          {submitting ? 'Wird eingeloggt…' : 'Einloggen'}
+        {error && <div className="error">{error}</div>}
+        <button type="submit" className="btn-primary" disabled={loading}>
+          {loading ? 'Logge ein…' : 'Einloggen'}
         </button>
-
-        <p
-          style={{
-            marginTop: '0.75rem',
-            fontSize: '0.8rem',
-            color: '#6b7280'
-          }}
-        >
-          Nach dem Login wirst du direkt zur Karte weitergeleitet.
-        </p>
       </form>
     </div>
   );

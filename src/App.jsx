@@ -10,23 +10,20 @@ import MapPage from './components/MapPage';
 import ProfilePage from './components/ProfilePage';
 import AdminDashboard from './components/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
-import TripsPage from './components/TripsPage';
-import FriendsPage from './components/FriendsPage';
-import FriendProfilePage from './components/FriendProfilePage';
-import FeedPage from './components/FeedPage';
 
 const App = () => {
   const [auth, setAuth] = useState({
     user: null,
-    loading: true
+    loading: true,
+    error: ''
   });
-
   const navigate = useNavigate();
 
+  // Initial: Token prüfen + /auth/me laden
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
     if (!token) {
-      setAuth({ user: null, loading: false });
+      setAuth({ user: null, loading: false, error: '' });
       return;
     }
 
@@ -35,55 +32,54 @@ const App = () => {
       .then((res) => {
         setAuth({
           user: res.data.user,
-          loading: false
+          loading: false,
+          error: ''
         });
       })
-      .catch(() => {
-        localStorage.removeItem('authToken');
-        setAuth({ user: null, loading: false });
+      .catch((err) => {
+        console.error(err);
+        // Wenn Token ungültig -> aufräumen
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+        }
+        setAuth({ user: null, loading: false, error: '' });
       });
   }, []);
 
   const handleLogin = (user) => {
-    setAuth({ user, loading: false });
+    setAuth({ user, loading: false, error: '' });
     navigate('/');
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    setAuth({ user: null, loading: false });
+    localStorage.removeItem('token');
+    setAuth({ user: null, loading: false, error: '' });
     navigate('/login');
   };
 
   if (auth.loading) {
     return (
-      <div className="app">
-        <Navbar user={null} onLogout={handleLogout} />
-        <div className="main-container">
-          <div className="center">Lade...</div>
+      <div className="app-root">
+        <div className="app-inner">
+          <Navbar user={auth.user} onLogout={handleLogout} />
+          <div className="page">
+            <div className="center">Lade…</div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="app">
-      <Navbar user={auth.user} onLogout={handleLogout} />
-      <div className="main-container">
+    <div className="app-root">
+      <div className="app-inner">
+        <Navbar user={auth.user} onLogout={handleLogout} />
         <Routes>
           <Route
             path="/"
             element={
               <ProtectedRoute user={auth.user}>
                 <MapPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/feed"
-            element={
-              <ProtectedRoute user={auth.user}>
-                <FeedPage />
               </ProtectedRoute>
             }
           />
@@ -96,33 +92,9 @@ const App = () => {
             }
           />
           <Route
-            path="/trips"
-            element={
-              <ProtectedRoute user={auth.user}>
-                <TripsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/friends"
-            element={
-              <ProtectedRoute user={auth.user}>
-                <FriendsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/friends/:id"
-            element={
-              <ProtectedRoute user={auth.user}>
-                <FriendProfilePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/admin"
             element={
-              <ProtectedRoute user={auth.user} requireAdmin={true}>
+              <ProtectedRoute user={auth.user} requireAdmin>
                 <AdminDashboard />
               </ProtectedRoute>
             }

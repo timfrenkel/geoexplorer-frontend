@@ -7,12 +7,12 @@ const RegisterPage = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSubmitting(true);
+    setLoading(true);
 
     try {
       const res = await api.post('/auth/register', {
@@ -20,73 +20,66 @@ const RegisterPage = ({ onLogin }) => {
         username,
         password
       });
-      onLogin(res.data.token, res.data.user);
+
+      const { token, user } = res.data || {};
+
+      if (!token || !user) {
+        setError('Unerwartete Antwort vom Server.');
+        setLoading(false);
+        return;
+      }
+
+      // Direkt einloggen: Token speichern
+      localStorage.setItem('token', token);
+
+      if (onLogin) {
+        onLogin(user);
+      }
     } catch (err) {
-      setError(
-        err.response?.data?.message || 'Registrierung fehlgeschlagen.'
-      );
+      console.error(err);
+      const msg =
+        err.response?.data?.message ||
+        'Registrierung fehlgeschlagen. Bitte versuche es erneut.';
+      setError(msg);
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container fade-in">
-      <h2>Account erstellen ✨</h2>
-      <p className="auth-subtitle">
-        Lege deinen Travel Badges Account an, sammle Sehenswürdigkeiten
-        und verfolge deinen Fortschritt auf der Karte.
-      </p>
-
-      {error && <div className="error">{error}</div>}
-
-      <form onSubmit={handleSubmit} className="auth-form slide-up">
+    <div className="page auth-page">
+      <h2>Account erstellen</h2>
+      <form className="auth-form" onSubmit={handleSubmit}>
         <label>
           E-Mail
           <input
             type="email"
-            placeholder="deinname@mail.de"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
         </label>
-
         <label>
-          Benutzername
+          Nutzername
           <input
             type="text"
-            placeholder="z.B. cityexplorer"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
           />
-          <small style={{ color: '#6b7280', fontSize: '0.8rem' }}>
-            Dein Benutzername wird anderen angezeigt, wenn du Badges sammelst.
-          </small>
         </label>
-
         <label>
           Passwort
           <input
             type="password"
-            minLength={6}
-            placeholder="Mindestens 6 Zeichen"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <small style={{ color: '#6b7280', fontSize: '0.8rem' }}>
-            Verwende ein sicheres Passwort, das du nur hier benutzt.
-          </small>
         </label>
-
-        <button
-          type="submit"
-          className="btn-primary"
-          disabled={submitting}
-        >
-          {submitting ? 'Wird erstellt…' : 'Account erstellen'}
+        {error && <div className="error">{error}</div>}
+        <button type="submit" className="btn-primary" disabled={loading}>
+          {loading ? 'Erstelle Account…' : 'Account erstellen'}
         </button>
       </form>
     </div>
