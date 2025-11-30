@@ -4,25 +4,23 @@ import api from '../api';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
-// Haversine-Distanz in km (für "Nächste Ziele")
+// Haversine-Distanz in km
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // km
-  const toRad = (deg) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
 
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) *
       Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-
+      Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
 
-// Badge-Icons als DivIcons (Emoji)
+// Marker Icons
 const visitedIcon = L.divIcon({
   className: 'badge-marker badge-marker-visited',
   html: '🏅',
@@ -37,27 +35,25 @@ const unvisitedIcon = L.divIcon({
   iconAnchor: [12, 24]
 });
 
-// Kategorien für Filter
+// Kategorien
 const CATEGORY_OPTIONS = [
   { id: 'all', label: 'Alle' },
   { id: 'landmark', label: 'Wahrzeichen' },
-  { id: 'culture', label: 'Kultur & Geschichte' },
-  { id: 'nature', label: 'Natur & Aussicht' },
-  { id: 'park', label: 'Parks & Gärten' },
-  { id: 'water', label: 'Wasser & Küste' },
-  { id: 'urban', label: 'Stadt & Viertel' },
+  { id: 'culture', label: 'Kultur' },
+  { id: 'nature', label: 'Natur' },
+  { id: 'park', label: 'Parks' },
+  { id: 'water', label: 'Wasser' },
+  { id: 'urban', label: 'Stadt' },
   { id: 'unique', label: 'Besondere Orte' }
 ];
 
-// Hilfskomponente, die die Karte bei Änderung von "target" zentriert
+// Map-Focus Komponente
 const MapController = ({ target }) => {
   const map = useMap();
-
   useEffect(() => {
     if (!target) return;
     map.setView([target.latitude, target.longitude], 13, { animate: true });
   }, [target, map]);
-
   return null;
 };
 
@@ -72,9 +68,12 @@ const MapPage = () => {
   const [locatingNearest, setLocatingNearest] = useState(false);
   const [focusedLocation, setFocusedLocation] = useState(null);
 
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  // Multi-Filter: ausgewählte Kategorien
+  const [selectedCategories, setSelectedCategories] = useState(['all']);
+  // Für Slide-Up Animation der Filterleiste
+  const [filterVisible, setFilterVisible] = useState(false);
 
-  // Check-in Dialog
+  // Check-in Modal
   const [checkinModal, setCheckinModal] = useState({
     open: false,
     location: null,
@@ -83,34 +82,33 @@ const MapPage = () => {
     submitting: false
   });
 
-  const defaultCenter = [52.52, 13.405]; // Berlin als Startansicht
-
   useEffect(() => {
     const loadData = async () => {
       try {
-        // 1) Aktive Locations
         const locRes = await api.get('/locations');
         setLocations(locRes.data.locations || []);
 
-        // 2) Profil + Badges für besuchte Orte
         const meRes = await api.get('/auth/me');
         const badges = meRes.data.badges || [];
-        const ids = new Set(badges.map((b) => b.location_id));
-        setVisitedIds(ids);
+        setVisitedIds(new Set(badges.map((b) => b.location_id)));
       } catch (err) {
         console.error(err);
-        setStatus('Fehler beim Laden der Karte oder des Profils.');
+        setStatus('Fehler beim Laden der Daten.');
       } finally {
         setLoading(false);
       }
     };
-
     loadData();
   }, []);
 
+  // Filter-Leiste „slidet“ beim Mount hoch
+  useEffect(() => {
+    setFilterVisible(true);
+  }, []);
+
   const openCheckinModal = (location) => {
-    setStatus('');
     setGeoError('');
+    setStatus('');
     setCheckinModal({
       open: true,
       location,
@@ -121,195 +119,136 @@ const MapPage = () => {
   };
 
   const closeCheckinModal = () => {
-    setCheckinModal((prev) => ({ ...prev, open: false }));
+    setCheckinModal((p) => ({ ...p, open: false }));
   };
 
   const handleConfirmCheckin = () => {
-    if (!checkinModal.location) return;
-    setStatus('');
-    setGeoError('');
-
     if (!navigator.geolocation) {
-      setGeoError('Geolocation wird von deinem Browser nicht unterstützt.');
+      setGeoError('Geolocation wird nicht unterstützt.');
       return;
     }
 
-    setCheckinModal((prev) => ({ ...prev, submitting: true }));
+    setCheckinModal((p) => ({ ...p, submitting: true }));
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const { latitude, longitude } = pos.coords;
-
         try {
           const res = await api.post(
             `/locations/${checkinModal.location.id}/checkin`,
             {
-              latitude,
-              longitude,
-              message: checkinModal.message.trim() || '',
-              imageUrl: checkinModal.imageUrl.trim() || ''
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              message: checkinModal.message.trim(),
+              imageUrl: checkinModal.imageUrl.trim()
             }
           );
 
+          setVisitedIds((prev) => new Set([...prev, checkinModal.location.id]));
           setStatus(res.data.message || 'Check-in erfolgreich!');
-          setVisitedIds((prev) => {
-            const next = new Set(prev);
-            next.add(checkinModal.location.id);
-            return next;
-          });
-          setCheckinModal((prev) => ({ ...prev, open: false, submitting: false }));
+          closeCheckinModal();
         } catch (err) {
           console.error(err);
           setStatus(
             err.response?.data?.message || 'Check-in fehlgeschlagen.'
           );
-          setCheckinModal((prev) => ({ ...prev, submitting: false }));
+        } finally {
+          setCheckinModal((p) => ({ ...p, submitting: false }));
         }
       },
       (err) => {
         console.error(err);
-        if (err.code === err.PERMISSION_DENIED) {
-          setGeoError('Standortfreigabe verweigert. Bitte erlaube den Zugriff.');
-        } else {
-          setGeoError('Fehler beim Abrufen deines Standorts.');
-        }
-        setCheckinModal((prev) => ({ ...prev, submitting: false }));
+        setGeoError('Standort konnte nicht ermittelt werden.');
+        setCheckinModal((p) => ({ ...p, submitting: false }));
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000
-      }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
-  // "Nächste Ziele" – nur unbesuchte Orte, unabhängig vom Filter
+  // Nächste Ziele (unabhängig vom Filter – immer global)
   const handleFindNearest = () => {
     setGeoError('');
-    setStatus('');
     setNearestTargets([]);
     setLocatingNearest(true);
 
     if (!navigator.geolocation) {
-      setGeoError('Geolocation wird von deinem Browser nicht unterstützt.');
+      setGeoError('Browser unterstützt keine Standortdaten.');
       setLocatingNearest(false);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
+        const unvisited = locations.filter((l) => !visitedIds.has(l.id));
 
-        const unvisited = locations.filter((loc) => !visitedIds.has(loc.id));
-        const withDistance = unvisited.map((loc) => ({
-          loc,
-          distanceKm: getDistanceKm(
-            latitude,
-            longitude,
-            loc.latitude,
-            loc.longitude
-          )
-        }));
+        const withDist = unvisited
+          .map((l) => ({
+            loc: l,
+            distanceKm: getDistanceKm(
+              pos.coords.latitude,
+              pos.coords.longitude,
+              l.latitude,
+              l.longitude
+            )
+          }))
+          .sort((a, b) => a.distanceKm - b.distanceKm)
+          .slice(0, 3);
 
-        withDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-
-        setNearestTargets(withDistance.slice(0, 3)); // Top 3
+        setNearestTargets(withDist);
         setLocatingNearest(false);
       },
       (err) => {
         console.error(err);
-        if (err.code === err.PERMISSION_DENIED) {
-          setGeoError('Standortfreigabe verweigert. Bitte erlaube den Zugriff.');
-        } else {
-          setGeoError('Fehler beim Abrufen deines Standorts.');
-        }
+        setGeoError('Standort konnte nicht ermittelt werden.');
         setLocatingNearest(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000
       }
     );
   };
 
-  // Karte auf einen Ort zentrieren
-  const handleFocusLocation = (loc) => {
-    setFocusedLocation(loc);
+  // Multi-Filter Handler
+  const handleToggleCategory = (id) => {
+    // „Alle“ = Reset
+    if (id === 'all') {
+      setSelectedCategories(['all']);
+      return;
+    }
+
+    setSelectedCategories((prev) => {
+      // Wenn bisher „all“ aktiv war → entferne „all“ und starte mit aktuellem
+      if (prev.includes('all')) {
+        return [id];
+      }
+
+      // Kategorie toggeln
+      if (prev.includes(id)) {
+        const next = prev.filter((c) => c !== id);
+        // Keine Kategorie mehr ausgewählt → wieder „all“
+        return next.length === 0 ? ['all'] : next;
+      } else {
+        return [...prev, id];
+      }
+    });
   };
 
-  // Kategorien-Filter anwenden
+  // Gefilterte Locations: wenn „all“ ausgewählt → alle
   const filteredLocations =
-    categoryFilter === 'all'
+    selectedCategories.includes('all')
       ? locations
-      : locations.filter((loc) => loc.category === categoryFilter);
+      : locations.filter((l) => selectedCategories.includes(l.category));
 
   const total = locations.length;
-  const visitedCount = visitedIds.size;
-  const progress = total > 0 ? Math.round((visitedCount / total) * 100) : 0;
-
   const visibleCount = filteredLocations.length;
+  const progress =
+    total > 0 ? Math.round((visitedIds.size / total) * 100) : 0;
 
   return (
     <div className="page page-full">
       <div className="map-wrapper">
-        {/* Toolbar / Filter über der Karte */}
-        <div
-          style={{
-            marginBottom: '0.5rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.35rem'
-          }}
-        >
-          <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-            Filter nach Kategorie:{' '}
-            <span style={{ fontWeight: 500, color: '#e5e7eb' }}>
-              {
-                CATEGORY_OPTIONS.find((c) => c.id === categoryFilter)?.label ||
-                'Alle'
-              }
-            </span>{' '}
-            · Sichtbar: {visibleCount}/{total}
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '0.4rem'
-            }}
-          >
-            {CATEGORY_OPTIONS.map((cat) => {
-              const active = cat.id === categoryFilter;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategoryFilter(cat.id)}
-                  className="btn-small"
-                  style={{
-                    borderRadius: '999px',
-                    padding: '0.25rem 0.7rem',
-                    fontSize: '0.8rem',
-                    border: active ? '1px solid #38bdf8' : '1px solid #4b5563',
-                    background: active
-                      ? 'rgba(56, 189, 248, 0.15)'
-                      : 'rgba(31, 41, 55, 0.8)',
-                    color: active ? '#e0f2fe' : '#e5e7eb'
-                  }}
-                >
-                  {cat.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Overlay oben über der Karte: Fortschritt + Nächste Ziele */}
+        {/* TOP OVERLAY */}
         <div className="map-overlay-top">
-          {/* Fortschritt */}
           <div className="overlay-card overlay-progress">
             <p className="overlay-title">Dein Fortschritt</p>
             <p className="overlay-text">
-              {visitedCount} von {total} Orten gesammelt ({progress}%)
+              {visitedIds.size} / {total} Orte · {progress}%
             </p>
             <div className="overlay-progress-bar">
               <div
@@ -319,14 +258,13 @@ const MapPage = () => {
             </div>
           </div>
 
-          {/* Nächste Ziele Button + Liste */}
           <div className="overlay-card overlay-nearest">
             <button
               className="btn-small btn-overlay"
               onClick={handleFindNearest}
-              disabled={locatingNearest || locations.length === 0}
+              disabled={locatingNearest}
             >
-              {locatingNearest ? 'Suche in deiner Nähe…' : 'Nächste Ziele finden'}
+              {locatingNearest ? 'Suche...' : 'Nächste Ziele'}
             </button>
 
             {nearestTargets.length > 0 && (
@@ -335,14 +273,11 @@ const MapPage = () => {
                   <li
                     key={loc.id}
                     className="nearest-item-clickable"
-                    onClick={() => handleFocusLocation(loc)}
+                    onClick={() => setFocusedLocation(loc)}
                   >
                     <strong>{loc.name}</strong>
                     <br />
-                    <span>
-                      ~{distanceKm.toFixed(1)} km entfernt
-                      {loc.category ? ` · ${loc.category}` : ''}
-                    </span>
+                    ~{distanceKm.toFixed(1)} km entfernt
                   </li>
                 ))}
               </ul>
@@ -350,61 +285,46 @@ const MapPage = () => {
           </div>
         </div>
 
+        {/* MAP */}
         {loading ? (
-          <div className="center">Lade Sehenswürdigkeiten.</div>
+          <div className="center">Lade Karte…</div>
         ) : (
           <MapContainer
-            center={defaultCenter}
+            center={[52.52, 13.405]}
             zoom={4}
             scrollWheelZoom={true}
             className="map-container"
           >
-            {/* Controller für Zentrierung */}
             <MapController target={focusedLocation} />
 
-            {/* Deutsch-orientierte OSM-Karte (openstreetmap.de) */}
             <TileLayer
               attribution="&copy; OpenStreetMap-Mitwirkende"
               url="https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png"
             />
 
             {filteredLocations.map((loc) => {
-              const isVisited = visitedIds.has(loc.id);
+              const visited = visitedIds.has(loc.id);
               return (
                 <Marker
                   key={loc.id}
                   position={[loc.latitude, loc.longitude]}
-                  icon={isVisited ? visitedIcon : unvisitedIcon}
+                  icon={visited ? visitedIcon : unvisitedIcon}
                 >
                   <Popup>
                     <strong>{loc.name}</strong>
                     <br />
-                    {loc.description && (
-                      <>
-                        {loc.description}
-                        <br />
-                      </>
-                    )}
                     {loc.category && (
                       <>
                         Kategorie: {loc.category}
                         <br />
                       </>
                     )}
-                    Radius: {loc.radius_m}m
-                    <br />
-                    {isVisited && (
-                      <span style={{ color: '#16a34a', fontSize: '0.85rem' }}>
-                        ✅ Badge bereits gesammelt
-                        <br />
-                      </span>
-                    )}
                     <button
                       className="btn-primary btn-small"
+                      disabled={visited}
                       onClick={() => openCheckinModal(loc)}
-                      disabled={isVisited}
                     >
-                      {isVisited ? 'Schon eingecheckt' : 'Check-in'}
+                      {visited ? 'Bereits eingecheckt' : 'Check-in'}
                     </button>
                   </Popup>
                 </Marker>
@@ -413,91 +333,133 @@ const MapPage = () => {
           </MapContainer>
         )}
 
-        {/* Fehler / Status unterhalb der Karte (aber noch im Sichtfeld) */}
+        {/* BOTTOM FILTER BAR – Multi-Filter + Slide-Up */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '50%',
+            transform: filterVisible
+              ? 'translateX(-50%) translateY(0)'
+              : 'translateX(-50%) translateY(120%)',
+            opacity: filterVisible ? 1 : 0,
+            transition: 'transform 0.35s ease-out, opacity 0.35s ease-out',
+            zIndex: 1000,
+            background: 'rgba(15,23,42,0.78)',
+            padding: '0.5rem',
+            borderRadius: '12px',
+            display: 'flex',
+            gap: '0.35rem',
+            overflowX: 'auto',
+            maxWidth: '90vw',
+            backdropFilter: 'blur(6px)'
+          }}
+        >
+          {CATEGORY_OPTIONS.map((cat) => {
+            const active = selectedCategories.includes(cat.id);
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleToggleCategory(cat.id)}
+                className="btn-small"
+                style={{
+                  borderRadius: '999px',
+                  padding: '0.25rem 0.7rem',
+                  fontSize: '0.8rem',
+                  border: active ? '1px solid #38bdf8' : '1px solid #4b5563',
+                  background: active
+                    ? 'rgba(56,189,248,0.18)'
+                    : 'rgba(31,41,55,0.6)',
+                  color: active ? '#e0f2fe' : '#e5e7eb',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+          <span
+            style={{
+              fontSize: '0.75rem',
+              color: '#9ca3af',
+              marginLeft: '0.35rem',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {selectedCategories.includes('all')
+              ? `Alle (${visibleCount})`
+              : `Gefiltert: ${visibleCount}/${total}`}
+          </span>
+        </div>
+
+        {/* Status & Fehler */}
         <div className="map-messages">
           {geoError && <div className="error">{geoError}</div>}
           {status && <div className="status">{status}</div>}
         </div>
 
-        {/* Check-in Modal */}
+        {/* CHECK-IN MODAL */}
         {checkinModal.open && (
           <div
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(15, 23, 42, 0.55)',
+              background: 'rgba(15,23,42,0.6)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               zIndex: 2000
             }}
           >
-            <div
-              className="card"
-              style={{
-                maxWidth: '420px',
-                width: '100%',
-                margin: '0 1rem'
-              }}
-            >
-              <h3 style={{ marginTop: 0, marginBottom: '0.5rem' }}>
-                Check-in bei {checkinModal.location?.name}
-              </h3>
-              <p style={{ fontSize: '0.85rem', marginTop: 0 }}>
-                Optional: kurze Nachricht und ein Bild-Link zu deinem Erlebnis.
-              </p>
+            <div className="card" style={{ maxWidth: 420, width: '100%' }}>
+              <h3>Check-in bei {checkinModal.location?.name}</h3>
+
               <div className="auth-form">
                 <label>
-                  Nachricht (optional)
+                  Nachricht
                   <textarea
                     rows={3}
                     value={checkinModal.message}
                     onChange={(e) =>
-                      setCheckinModal((prev) => ({
-                        ...prev,
+                      setCheckinModal((p) => ({
+                        ...p,
                         message: e.target.value
                       }))
                     }
                   />
                 </label>
                 <label>
-                  Bild-URL (optional)
+                  Bild-URL
                   <input
                     type="url"
-                    placeholder="https://…"
                     value={checkinModal.imageUrl}
                     onChange={(e) =>
-                      setCheckinModal((prev) => ({
-                        ...prev,
+                      setCheckinModal((p) => ({
+                        ...p,
                         imageUrl: e.target.value
                       }))
                     }
                   />
                 </label>
               </div>
+
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'flex-end',
-                  gap: '0.5rem',
-                  marginTop: '0.5rem'
+                  gap: '0.5rem'
                 }}
               >
-                <button
-                  className="btn-small btn-danger"
-                  type="button"
-                  onClick={closeCheckinModal}
-                  disabled={checkinModal.submitting}
-                >
+                <button className="btn-small btn-danger" onClick={closeCheckinModal}>
                   Abbrechen
                 </button>
                 <button
                   className="btn-primary"
-                  type="button"
                   onClick={handleConfirmCheckin}
                   disabled={checkinModal.submitting}
                 >
-                  {checkinModal.submitting ? 'Check-in läuft…' : 'Check-in bestätigen'}
+                  {checkinModal.submitting ? 'Bitte warten…' : 'Bestätigen'}
                 </button>
               </div>
             </div>
