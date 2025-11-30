@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 
-// Base64-Helfer
+// Base64-Helfer für Bild-Upload (als Data-URL)
 const fileToDataUrl = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -65,7 +65,7 @@ const ProfilePage = () => {
   const [gamError, setGamError] = useState('');
   const [gamLoaded, setGamLoaded] = useState(false);
 
-  // Trips (Phase 2 Schritt 1: Trips im Profil anzeigen)
+  // Trips
   const [trips, setTrips] = useState([]);
   const [tripsLoading, setTripsLoading] = useState(false);
   const [tripsError, setTripsError] = useState('');
@@ -76,21 +76,25 @@ const ProfilePage = () => {
       .then((res) => {
         setProfile(res.data);
         const u = res.data.user;
+
         setForm({
-          profileImageUrl: u.profileImageUrl || '',
-          bannerImageUrl: u.bannerImageUrl || '',
+          profileImageUrl: u.profileImageUrl || u.profile_image_url || '',
+          bannerImageUrl: u.bannerImageUrl || u.banner_image_url || '',
           bio: u.bio || '',
-          moodEmoji: u.moodEmoji || '',
-          homeCity: u.homeCity || '',
-          homeCountry: u.homeCountry || '',
-          customStatus: u.customStatus || '',
+          moodEmoji: u.moodEmoji || u.mood_emoji || '',
+          homeCity: u.homeCity || u.home_city || '',
+          homeCountry: u.homeCountry || u.home_country || '',
+          customStatus: u.customStatus || u.custom_status || '',
           isProfilePublic:
-            typeof u.isProfilePublic === 'boolean' ? u.isProfilePublic : true,
+            typeof u.isProfilePublic === 'boolean'
+              ? u.isProfilePublic
+              : u.is_profile_public ?? true,
           isFeedPublic:
-            typeof u.isFeedPublic === 'boolean' ? u.isFeedPublic : true
+            typeof u.isFeedPublic === 'boolean'
+              ? u.isFeedPublic
+              : u.is_feed_public ?? true
         });
 
-        // Trips laden, sobald User da ist
         loadTrips();
       })
       .catch((err) => {
@@ -139,13 +143,20 @@ const ProfilePage = () => {
   if (error) return <div className="error">{error}</div>;
   if (!profile) return <div>Lade Profil...</div>;
 
-  const { user, points, badges } = profile;
+  const { user, points = 0, badges = [] } = profile;
+  const streak = user.checkinStreakDays || user.checkin_streak_days || 0;
+  const lastCheckinDate = user.lastCheckinDate
+    ? new Date(user.lastCheckinDate)
+    : user.last_checkin_date
+    ? new Date(user.last_checkin_date)
+    : null;
+
   const {
     level,
     title,
     perLevel,
     pointsIntoLevel
-  } = getLevelInfo(points || 0);
+  } = getLevelInfo(points);
 
   const levelProgressPercent =
     perLevel > 0
@@ -192,13 +203,10 @@ const ProfilePage = () => {
     }
   };
 
-  const streak = user.checkinStreakDays || 0;
-  const lastCheckinDate = user.lastCheckinDate
-    ? new Date(user.lastCheckinDate)
-    : null;
-
-  const displayProfileImage = form.profileImageUrl || user.profileImageUrl;
-  const displayBannerImage = form.bannerImageUrl || user.bannerImageUrl;
+  const displayProfileImage =
+    form.profileImageUrl || user.profileImageUrl || user.profile_image_url;
+  const displayBannerImage =
+    form.bannerImageUrl || user.bannerImageUrl || user.banner_image_url;
 
   return (
     <div className="page">
@@ -242,7 +250,7 @@ const ProfilePage = () => {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize:
-                displayProfileImage || user.moodEmoji ? '1.7rem' : '1.2rem',
+                displayProfileImage || form.moodEmoji ? '1.7rem' : '1.2rem',
               color: 'white',
               position: 'relative',
               zIndex: 3
@@ -255,11 +263,15 @@ const ProfilePage = () => {
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             ) : (
-              (form.moodEmoji || user.moodEmoji || user.username[0] || 'U')
+              (form.moodEmoji ||
+                user.moodEmoji ||
+                user.mood_emoji ||
+                user.username[0] ||
+                'U')
             )}
           </div>
 
-          {/* NEU: gleiches Layout wie FriendProfile – rechts Level + Stadt/Land */}
+          {/* Name / Emoji / Level / Ort rechtsbündig */}
           <div
             style={{
               flex: 1,
@@ -269,7 +281,6 @@ const ProfilePage = () => {
               flexWrap: 'wrap'
             }}
           >
-            {/* Links: Username + Emoji */}
             <div
               style={{
                 display: 'flex',
@@ -281,14 +292,15 @@ const ProfilePage = () => {
               <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>
                 {user.username}
               </span>
-              {(user.moodEmoji || form.moodEmoji) && (
+              {(user.moodEmoji || user.mood_emoji || form.moodEmoji) && (
                 <span style={{ fontSize: '1.3rem' }}>
-                  {form.moodEmoji || user.moodEmoji}
+                  {form.moodEmoji ||
+                    user.moodEmoji ||
+                    user.mood_emoji}
                 </span>
               )}
             </div>
 
-            {/* Rechts: Level + Ort/Land */}
             <div style={{ textAlign: 'right' }}>
               <span
                 style={{
@@ -303,15 +315,27 @@ const ProfilePage = () => {
               >
                 Level {level} · {title}
               </span>
-
-              {(user.homeCity || user.homeCountry || form.homeCity || form.homeCountry) && (
-                <div style={{ fontSize: '0.8rem', color: '#4b5563' }}>
-                  🏡 {form.homeCity || user.homeCity}
-                  {(form.homeCity || user.homeCity) &&
-                  (form.homeCountry || user.homeCountry)
+              {(user.homeCity ||
+                user.home_city ||
+                form.homeCity ||
+                user.homeCountry ||
+                user.home_country ||
+                form.homeCountry) && (
+                <div
+                  style={{ fontSize: '0.8rem', color: '#4b5563' }}
+                >
+                  🏡 {form.homeCity || user.homeCity || user.home_city}
+                  {(form.homeCity ||
+                    user.homeCity ||
+                    user.home_city) &&
+                  (form.homeCountry ||
+                    user.homeCountry ||
+                    user.home_country)
                     ? ', '
                     : ''}
-                  {form.homeCountry || user.homeCountry}
+                  {form.homeCountry ||
+                    user.homeCountry ||
+                    user.home_country}
                 </div>
               )}
             </div>
@@ -337,7 +361,9 @@ const ProfilePage = () => {
         </button>
         <button
           type="button"
-          className={`tab ${activeTab === 'gamification' ? 'active' : ''}`}
+          className={`tab ${
+            activeTab === 'gamification' ? 'active' : ''
+          }`}
           onClick={() => setActiveTab('gamification')}
         >
           Missions & Erfolge
@@ -381,10 +407,15 @@ const ProfilePage = () => {
             )}
             <p style={{ marginTop: '0.5rem' }}>
               <strong>Profil-Sichtbarkeit:</strong>{' '}
-              {user.isProfilePublic ? 'Öffentlich' : 'Nur für Freunde'}
+              {user.isProfilePublic ||
+              user.is_profile_public
+                ? 'Öffentlich'
+                : 'Nur für Freunde'}
               {' · '}
               <strong>Feed:</strong>{' '}
-              {user.isFeedPublic ? 'Öffentlich für Freunde' : 'Nur du'}
+              {user.isFeedPublic || user.is_feed_public
+                ? 'Öffentlich für Freunde'
+                : 'Nur du'}
             </p>
           </div>
 
@@ -397,15 +428,14 @@ const ProfilePage = () => {
             </p>
           </div>
 
-          {/* NEU: Deine Trips-Übersicht (Phase 2 – Schritt 1) */}
           <div className="card">
             <h3>Deine Trips</h3>
             {tripsLoading && <p>Lade Trips…</p>}
             {tripsError && <div className="error">{tripsError}</div>}
             {!tripsLoading && !tripsError && trips.length === 0 && (
               <p>
-                Du hast noch keine Trips angelegt. Erstelle deinen ersten Trip
-                unter „Trips“! 🧳
+                Du hast noch keine Trips angelegt. Erstelle deinen ersten
+                Trip unter „Trips“! 🧳
               </p>
             )}
             {!tripsLoading && !tripsError && trips.length > 0 && (
@@ -472,7 +502,9 @@ const ProfilePage = () => {
                       <br />
                       <small>
                         Eingesammelt am:{' '}
-                        {new Date(b.created_at).toLocaleString()}
+                        {new Date(
+                          b.created_at
+                        ).toLocaleString()}
                       </small>
                     </div>
                   </li>
@@ -483,7 +515,7 @@ const ProfilePage = () => {
         </>
       )}
 
-      {/* Tab: Edit */}
+      {/* Tab: Profil bearbeiten */}
       {activeTab === 'edit' && (
         <div className="card">
           <h3>Profil bearbeiten</h3>
@@ -665,34 +697,65 @@ const ProfilePage = () => {
 
           {!gamLoading && !gamError && (
             <>
-              <h4>Missions</h4>
+              <h4>Aktive Missions</h4>
               {missions.length === 0 && (
                 <p>Aktuell sind noch keine Missions definiert.</p>
               )}
               {missions.length > 0 && (
-                <ul className="badge-list">
+                <div className="missions-grid">
                   {missions.map((m) => {
                     const goal = m.target_value ?? 0;
                     const current = m.progress_value ?? 0;
-                    const done = m.is_completed ?? (m.completed_at != null);
+                    const done =
+                      m.is_completed || m.completed_at != null;
+                    const percent =
+                      goal > 0
+                        ? Math.min(
+                            100,
+                            Math.round((current / goal) * 100)
+                          )
+                        : 0;
+
                     return (
-                      <li key={m.id} className="badge-item">
-                        <div className="badge-icon">
-                          {done ? '✅' : '🎯'}
+                      <div
+                        key={m.id}
+                        className={`mission-card ${
+                          done ? 'mission-complete' : ''
+                        }`}
+                      >
+                        <div className="mission-header">
+                          <span className="mission-badge">
+                            {m.target_type === 'TOTAL_CHECKINS'
+                              ? 'Check-ins'
+                              : m.target_type === 'STREAK_DAYS'
+                              ? 'Streak'
+                              : 'Mission'}
+                          </span>
+                          {done && (
+                            <span className="mission-status">
+                              ✅ Abgeschlossen
+                            </span>
+                          )}
                         </div>
-                        <div className="badge-content">
-                          <strong>{m.name}</strong>
-                          <br />
-                          <small>{m.description}</small>
-                          <br />
-                          <small>
-                            Fortschritt: {current}/{goal}
-                          </small>
+                        <div className="mission-title">{m.name}</div>
+                        <div className="mission-description">
+                          {m.description}
                         </div>
-                      </li>
+                        <div className="mission-progress-wrapper">
+                          <div className="mission-progress-bar">
+                            <div
+                              className="mission-progress-fill"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                          <div className="mission-progress-label">
+                            {current} / {goal}
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
-                </ul>
+                </div>
               )}
 
               <h4 style={{ marginTop: '1rem' }}>Erfolge</h4>
@@ -714,7 +777,9 @@ const ProfilePage = () => {
                         <small>
                           Freigeschaltet am:{' '}
                           {a.unlocked_at
-                            ? new Date(a.unlocked_at).toLocaleString()
+                            ? new Date(
+                                a.unlocked_at
+                              ).toLocaleString()
                             : 'Unbekannt'}
                         </small>
                       </div>

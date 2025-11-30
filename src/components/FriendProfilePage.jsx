@@ -33,7 +33,7 @@ const getLevelInfo = (points) => {
 
 const FriendProfilePage = () => {
   const { id } = useParams();
-  const [data, setData] = useState(null); // { user, relation, isFriend, isSelf, canSeeFeed, points, achievements, checkins }
+  const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -67,7 +67,9 @@ const FriendProfilePage = () => {
     setActionLoading(true);
     setActionError('');
     try {
-      await api.post('/friends/requests', { friendId: data.user.id });
+      await api.post('/friends/requests', {
+        friendId: data.user.id
+      });
       loadProfile();
     } catch (err) {
       console.error(err);
@@ -84,7 +86,9 @@ const FriendProfilePage = () => {
     setActionLoading(true);
     setActionError('');
     try {
-      await api.post(`/friends/requests/${data.requestId}/accept`);
+      await api.post(
+        `/friends/requests/${data.requestId}/accept`
+      );
       loadProfile();
     } catch (err) {
       console.error(err);
@@ -102,7 +106,9 @@ const FriendProfilePage = () => {
     setActionLoading(true);
     setActionError('');
     try {
-      await api.post(`/friends/requests/${data.requestId}/reject`);
+      await api.post(
+        `/friends/requests/${data.requestId}/reject`
+      );
       loadProfile();
     } catch (err) {
       console.error(err);
@@ -156,19 +162,34 @@ const FriendProfilePage = () => {
     achievements = []
   } = data;
 
-  const streak = user.checkinStreakDays || 0;
+  const streak =
+    user.checkinStreakDays ||
+    user.checkin_streak_days ||
+    0;
   const lastCheckinDate = user.lastCheckinDate
     ? new Date(user.lastCheckinDate)
+    : user.last_checkin_date
+    ? new Date(user.last_checkin_date)
     : null;
 
-  const { level, title, perLevel, pointsIntoLevel } = getLevelInfo(points);
+  const {
+    level,
+    title,
+    perLevel,
+    pointsIntoLevel
+  } = getLevelInfo(points);
   const levelProgressPercent =
     perLevel > 0
       ? Math.min(100, Math.round((pointsIntoLevel / perLevel) * 100))
       : 0;
 
-  const displayProfileImage = user.profileImageUrl;
-  const displayBannerImage = user.bannerImageUrl;
+  const displayProfileImage =
+    user.profileImageUrl || user.profile_image_url;
+  const displayBannerImage =
+    user.bannerImageUrl || user.banner_image_url;
+
+  // Top 3 Erfolge für Highlightreihe
+  const topAchievements = achievements.slice(0, 3);
 
   return (
     <div className="page">
@@ -213,7 +234,9 @@ const FriendProfilePage = () => {
               justifyContent: 'center',
               color: 'white',
               fontSize:
-                displayProfileImage || user.moodEmoji ? '1.7rem' : '1.2rem',
+                displayProfileImage || user.moodEmoji
+                  ? '1.7rem'
+                  : '1.2rem',
               position: 'relative',
               zIndex: 3
             }}
@@ -222,55 +245,79 @@ const FriendProfilePage = () => {
               <img
                 src={displayProfileImage}
                 alt={user.username}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
               />
             ) : (
-              (user.moodEmoji || user.username[0] || 'U')
+              (user.moodEmoji ||
+                user.mood_emoji ||
+                user.username[0] ||
+                'U')
             )}
           </div>
-          <div style={{ 
-            flex: 1, 
-            display: "flex", 
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap"
-            }}>
-            {/* Linke Seite: Nutzername + Emoji */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
-                <span style={{ fontWeight: 600, fontSize: "1.1rem" }}>
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                flexWrap: 'wrap'
+              }}
+            >
+              <span
+                style={{ fontWeight: 600, fontSize: '1.1rem' }}
+              >
                 {user.username}
+              </span>
+              {(user.moodEmoji || user.mood_emoji) && (
+                <span style={{ fontSize: '1.3rem' }}>
+                  {user.moodEmoji || user.mood_emoji}
                 </span>
-                {user.moodEmoji && (
-                <span style={{ fontSize: "1.3rem" }}>{user.moodEmoji}</span>
-                )}
+              )}
             </div>
 
-            {/* Rechte Seite: Level + Stadt/Land */}
-            <div style={{ textAlign: "right" }}>
-                <span
+            <div style={{ textAlign: 'right' }}>
+              <span
                 style={{
-                    fontSize: "0.8rem",
-                    padding: "0.1rem 0.5rem",
-                    borderRadius: "999px",
-                    background: "#eef2ff",
-                    color: "#4338ca",
-                    display: "inline-block",
-                    marginBottom: "0.2rem"
+                  fontSize: '0.8rem',
+                  padding: '0.1rem 0.5rem',
+                  borderRadius: '999px',
+                  background: '#eef2ff',
+                  color: '#4338ca',
+                  display: 'inline-block',
+                  marginBottom: '0.2rem'
                 }}
-                >
+              >
                 Level {level} · {title}
-                </span>
-
-                {(user.homeCity || user.homeCountry) && (
-                <div style={{ fontSize: "0.8rem", color: "#4b5563" }}>
-                    🏡 {user.homeCity}
-                    {user.homeCity && user.homeCountry ? ", " : ""}
-                    {user.homeCountry}
+              </span>
+              {(user.homeCity ||
+                user.home_city ||
+                user.homeCountry ||
+                user.home_country) && (
+                <div
+                  style={{ fontSize: '0.8rem', color: '#4b5563' }}
+                >
+                  🏡 {user.homeCity || user.home_city}
+                  {user.homeCity &&
+                  user.homeCountry
+                    ? ', '
+                    : ''}
+                  {user.homeCountry || user.home_country}
                 </div>
-                )}
+              )}
             </div>
-            </div>
-
+          </div>
         </div>
       </div>
 
@@ -295,7 +342,9 @@ const FriendProfilePage = () => {
                 onClick={handleSendRequest}
                 disabled={actionLoading}
               >
-                {actionLoading ? 'Sende…' : 'Freundschaftsanfrage senden'}
+                {actionLoading
+                  ? 'Sende…'
+                  : 'Freundschaftsanfrage senden'}
               </button>
             )}
             {data.relation === 'pending_incoming' && (
@@ -306,7 +355,9 @@ const FriendProfilePage = () => {
                   onClick={handleAcceptRequest}
                   disabled={actionLoading}
                 >
-                  {actionLoading ? 'Bitte warten…' : 'Anfrage annehmen'}
+                  {actionLoading
+                    ? 'Bitte warten…'
+                    : 'Anfrage annehmen'}
                 </button>
                 <button
                   type="button"
@@ -337,7 +388,12 @@ const FriendProfilePage = () => {
           </div>
         )}
 
-        <div style={{ marginTop: '0.75rem', fontSize: '0.9rem' }}>
+        <div
+          style={{
+            marginTop: '0.75rem',
+            fontSize: '0.9rem'
+          }}
+        >
           <p>
             <strong>Punkte:</strong> {points}
           </p>
@@ -370,11 +426,49 @@ const FriendProfilePage = () => {
 
         <p style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
           <strong>Profil-Sichtbarkeit:</strong>{' '}
-          {user.isProfilePublic ? 'Öffentlich' : 'Nur für Freunde'}
+          {user.isProfilePublic ||
+          user.is_profile_public
+            ? 'Öffentlich'
+            : 'Nur für Freunde'}
           {' · '}
           <strong>Feed:</strong>{' '}
-          {user.isFeedPublic ? 'Für Freunde sichtbar' : 'Privat'}
+          {user.isFeedPublic || user.is_feed_public
+            ? 'Für Freunde sichtbar'
+            : 'Privat'}
         </p>
+      </div>
+
+      {/* Kurz-Highlight der Top-Erfolge */}
+      <div className="card">
+        <h3>Top-Erfolge</h3>
+        {topAchievements.length === 0 && (
+          <p>Noch keine Erfolge freigeschaltet.</p>
+        )}
+        {topAchievements.length > 0 && (
+          <div className="missions-grid">
+            {topAchievements.map((a) => (
+              <div key={a.id} className="mission-card mission-compact">
+                <div className="mission-header">
+                  <span className="mission-badge">
+                    {a.icon || '🏆'}
+                  </span>
+                </div>
+                <div className="mission-title">{a.name}</div>
+                <div className="mission-description">
+                  {a.description}
+                </div>
+                <div className="mission-progress-label">
+                  Freigeschaltet:{' '}
+                  {a.unlocked_at
+                    ? new Date(
+                        a.unlocked_at
+                      ).toLocaleDateString()
+                    : 'Unbekannt'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Bio */}
@@ -387,9 +481,9 @@ const FriendProfilePage = () => {
         </p>
       </div>
 
-      {/* Erfolge */}
+      {/* Erfolge im Detail */}
       <div className="card">
-        <h3>Erfolge</h3>
+        <h3>Alle Erfolge</h3>
         {achievements.length === 0 && (
           <p>Noch keine Erfolge freigeschaltet.</p>
         )}
@@ -408,7 +502,9 @@ const FriendProfilePage = () => {
                   <small>
                     Freigeschaltet am:{' '}
                     {a.unlocked_at
-                      ? new Date(a.unlocked_at).toLocaleString()
+                      ? new Date(
+                          a.unlocked_at
+                        ).toLocaleString()
                       : 'Unbekannt'}
                   </small>
                 </div>
@@ -444,9 +540,14 @@ const FriendProfilePage = () => {
                   >
                     <strong>{c.location_name}</strong>
                     <span
-                      style={{ fontSize: '0.8rem', color: '#6b7280' }}
+                      style={{
+                        fontSize: '0.8rem',
+                        color: '#6b7280'
+                      }}
                     >
-                      {new Date(c.created_at).toLocaleString()}
+                      {new Date(
+                        c.created_at
+                      ).toLocaleString()}
                     </span>
                   </div>
                   {c.location_category && (

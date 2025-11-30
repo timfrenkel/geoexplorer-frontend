@@ -1091,5 +1091,186 @@
   }
 }
 
+/* Toasts für Check-ins / Achievements */
+.toast-container {
+  position: fixed;
+  top: 64px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 1000;
+}
+
+.toast {
+  min-width: 220px;
+  max-width: 320px;
+  background: rgba(15, 23, 42, 0.96);
+  color: #e5e7eb;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.45);
+  font-size: 0.85rem;
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast-title {
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.toast-message {
+  font-size: 0.8rem;
+}
+
+.toast-points .toast-title {
+  color: #facc15;
+}
+
+.toast-streak .toast-title {
+  color: #fb923c;
+}
+
+.toast-achievement .toast-title {
+  color: #22c55e;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Mission-Snippet in der Karte + Missionskarten */
+.mission-snippet {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.mission-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mission-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.mission-progress-bar {
+  margin-top: 0.3rem;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  overflow: hidden;
+}
+
+.mission-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.overlay-text-small {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  color: #e5e7eb;
+}
+
+.error-inline {
+  color: #fecaca;
+}
+
+/* Missions-Grid im Profil / Friend-Profil */
+.missions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.mission-card {
+  background: rgba(15, 23, 42, 0.95);
+  color: #e5e7eb;
+  border-radius: 0.9rem;
+  padding: 0.65rem 0.8rem;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.5);
+  font-size: 0.82rem;
+}
+
+.mission-card.mission-compact {
+  padding: 0.55rem 0.7rem;
+}
+
+.mission-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.mission-badge {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfdbfe;
+}
+
+.mission-status {
+  font-size: 0.7rem;
+  color: #bbf7d0;
+}
+
+.mission-title {
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.mission-description {
+  font-size: 0.78rem;
+  color: #e5e7eb;
+  opacity: 0.9;
+  margin-bottom: 0.3rem;
+}
+
+.mission-progress-wrapper {
+  margin-top: 0.2rem;
+}
+
+.mission-progress-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+  overflow: hidden;
+}
+
+.mission-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.mission-progress-label {
+  font-size: 0.75rem;
+  margin-top: 0.2rem;
+  color: #cbd5f5;
+}
+
+/* Kleine Anpassung: Overlay oben etwas Platz für Toasts lassen */
+.map-overlay-top {
+  margin-top: 0.35rem;
+}
+
   /* Ende styles.css */
   
