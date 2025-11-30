@@ -547,7 +547,8 @@ const MapPage = () => {
                 right: 0,
                 display: 'flex',
                 justifyContent: 'center',
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                zIndex: 500
               }}
             >
               <div
