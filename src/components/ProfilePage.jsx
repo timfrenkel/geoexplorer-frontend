@@ -99,6 +99,11 @@ const ProfilePage = () => {
       })
       .catch((err) => {
         console.error(err);
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          return;
+        }
         setError('Fehler beim Laden des Profils.');
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,6 +138,11 @@ const ProfilePage = () => {
       })
       .catch((err) => {
         console.error(err);
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          return;
+        }
         setGamError(
           'Gamification-Daten konnten nicht geladen werden (Feature evtl. noch nicht aktiv).'
         );
@@ -151,13 +161,8 @@ const ProfilePage = () => {
     ? new Date(user.last_checkin_date)
     : null;
 
-  const {
-    level,
-    title,
-    perLevel,
-    pointsIntoLevel
-  } = getLevelInfo(points);
-
+  const { level, title, perLevel, pointsIntoLevel } =
+    getLevelInfo(points);
   const levelProgressPercent =
     perLevel > 0
       ? Math.min(100, Math.round((pointsIntoLevel / perLevel) * 100))
@@ -197,6 +202,11 @@ const ProfilePage = () => {
       setSaveMessage('Profil aktualisiert.');
     } catch (err) {
       console.error(err);
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        return;
+      }
       setError('Fehler beim Aktualisieren des Profils.');
     } finally {
       setSaving(false);
@@ -250,7 +260,9 @@ const ProfilePage = () => {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize:
-                displayProfileImage || form.moodEmoji ? '1.7rem' : '1.2rem',
+                displayProfileImage || form.moodEmoji
+                  ? '1.7rem'
+                  : '1.2rem',
               color: 'white',
               position: 'relative',
               zIndex: 3
@@ -260,7 +272,11 @@ const ProfilePage = () => {
               <img
                 src={displayProfileImage}
                 alt={user.username}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
               />
             ) : (
               (form.moodEmoji ||
@@ -289,10 +305,14 @@ const ProfilePage = () => {
                 flexWrap: 'wrap'
               }}
             >
-              <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>
+              <span
+                style={{ fontWeight: 600, fontSize: '1.1rem' }}
+              >
                 {user.username}
               </span>
-              {(user.moodEmoji || user.mood_emoji || form.moodEmoji) && (
+              {(user.moodEmoji ||
+                user.mood_emoji ||
+                form.moodEmoji) && (
                 <span style={{ fontSize: '1.3rem' }}>
                   {form.moodEmoji ||
                     user.moodEmoji ||
@@ -324,7 +344,9 @@ const ProfilePage = () => {
                 <div
                   style={{ fontSize: '0.8rem', color: '#4b5563' }}
                 >
-                  🏡 {form.homeCity || user.homeCity || user.home_city}
+                  🏡 {form.homeCity ||
+                    user.homeCity ||
+                    user.home_city}
                   {(form.homeCity ||
                     user.homeCity ||
                     user.home_city) &&
@@ -347,14 +369,18 @@ const ProfilePage = () => {
       <div className="tabs">
         <button
           type="button"
-          className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
+          className={`tab ${
+            activeTab === 'overview' ? 'active' : ''
+          }`}
           onClick={() => setActiveTab('overview')}
         >
           Übersicht
         </button>
         <button
           type="button"
-          className={`tab ${activeTab === 'edit' ? 'active' : ''}`}
+          className={`tab ${
+            activeTab === 'edit' ? 'active' : ''
+          }`}
           onClick={() => setActiveTab('edit')}
         >
           Profil bearbeiten
@@ -421,7 +447,12 @@ const ProfilePage = () => {
 
           <div className="card">
             <h3>Über dich</h3>
-            <p style={{ whiteSpace: 'pre-wrap', marginTop: '0.25rem' }}>
+            <p
+              style={{
+                whiteSpace: 'pre-wrap',
+                marginTop: '0.25rem'
+              }}
+            >
               {user.bio && user.bio.trim().length > 0
                 ? user.bio
                 : 'Du hast noch keine Bio hinzugefügt.'}
@@ -431,74 +462,99 @@ const ProfilePage = () => {
           <div className="card">
             <h3>Deine Trips</h3>
             {tripsLoading && <p>Lade Trips…</p>}
-            {tripsError && <div className="error">{tripsError}</div>}
-            {!tripsLoading && !tripsError && trips.length === 0 && (
-              <p>
-                Du hast noch keine Trips angelegt. Erstelle deinen ersten
-                Trip unter „Trips“! 🧳
-              </p>
+            {tripsError && (
+              <div className="error">{tripsError}</div>
             )}
-            {!tripsLoading && !tripsError && trips.length > 0 && (
-              <ul className="badge-list">
-                {trips.map((trip) => (
-                  <li key={trip.id} className="badge-item">
-                    {trip.cover_image_url && (
-                      <div className="badge-icon">
-                        <img
-                          src={trip.cover_image_url}
-                          alt={trip.name}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: '0.5rem',
-                            objectFit: 'cover'
-                          }}
-                        />
-                      </div>
-                    )}
-                    <div className="badge-content">
-                      <strong>{trip.name}</strong>
-                      <br />
-                      {trip.description && (
-                        <small>{trip.description}</small>
+            {!tripsLoading &&
+              !tripsError &&
+              trips.length === 0 && (
+                <p>
+                  Du hast noch keine Trips angelegt. Erstelle deinen
+                  ersten Trip unter „Trips“! 🧳
+                </p>
+              )}
+            {!tripsLoading &&
+              !tripsError &&
+              trips.length > 0 && (
+                <ul className="badge-list">
+                  {trips.map((trip) => (
+                    <li
+                      key={trip.id}
+                      className="badge-item"
+                    >
+                      {trip.cover_image_url && (
+                        <div className="badge-icon">
+                          <img
+                            src={trip.cover_image_url}
+                            alt={trip.name}
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: '0.5rem',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        </div>
                       )}
-                      <br />
-                      <small>
-                        {trip.start_date &&
-                          `Ab ${new Date(
-                            trip.start_date
-                          ).toLocaleDateString()}`}
-                        {trip.start_date && trip.end_date && ' – '}
-                        {trip.end_date &&
-                          `Bis ${new Date(
-                            trip.end_date
-                          ).toLocaleDateString()}`}
-                      </small>
-                      <br />
-                      <small>
-                        Sichtbarkeit:{' '}
-                        {trip.is_public ? 'Öffentlich' : 'Privat'}
-                      </small>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+                      <div className="badge-content">
+                        <strong>{trip.name}</strong>
+                        <br />
+                        {trip.description && (
+                          <small>
+                            {trip.description}
+                          </small>
+                        )}
+                        <br />
+                        <small>
+                          {trip.start_date &&
+                            `Ab ${new Date(
+                              trip.start_date
+                            ).toLocaleDateString()}`}
+                          {trip.start_date &&
+                            trip.end_date &&
+                            ' – '}
+                          {trip.end_date &&
+                            `Bis ${new Date(
+                              trip.end_date
+                            ).toLocaleDateString()}`}
+                        </small>
+                        <br />
+                        <small>
+                          Sichtbarkeit:{' '}
+                          {trip.is_public
+                            ? 'Öffentlich'
+                            : 'Privat'}
+                        </small>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
           </div>
 
           <div className="card">
             <h3>Gesammelte Badges</h3>
             {(!badges || badges.length === 0) && (
-              <p>Noch keine Badges gesammelt – ab auf die Karte! 🗺️</p>
+              <p>
+                Noch keine Badges gesammelt – ab auf die
+                Karte! 🗺️
+              </p>
             )}
             {badges && badges.length > 0 && (
               <ul className="badge-list">
                 {badges.map((b) => (
-                  <li key={b.id} className="badge-item">
-                    <div className="badge-icon">🏅</div>
+                  <li
+                    key={b.id}
+                    className="badge-item"
+                  >
+                    <div className="badge-icon">
+                      🏅
+                    </div>
                     <div className="badge-content">
                       <strong>{b.name}</strong>
-                      {b.category && <span> ({b.category})</span>}
+                      {b.category && (
+                        <span> ({b.category})</span>
+                      )}
                       <br />
                       <small>
                         Eingesammelt am:{' '}
@@ -519,14 +575,20 @@ const ProfilePage = () => {
       {activeTab === 'edit' && (
         <div className="card">
           <h3>Profil bearbeiten</h3>
-          <form className="auth-form" onSubmit={handleSaveProfile}>
+          <form
+            className="auth-form"
+            onSubmit={handleSaveProfile}
+          >
             <label>
               Profilbild-URL
               <input
                 type="url"
                 value={form.profileImageUrl}
                 onChange={(e) =>
-                  handleFormChange('profileImageUrl', e.target.value)
+                  handleFormChange(
+                    'profileImageUrl',
+                    e.target.value
+                  )
                 }
                 placeholder="https://… oder du wählst eine Datei unten"
               />
@@ -537,14 +599,21 @@ const ProfilePage = () => {
                 type="file"
                 accept="image/*"
                 onChange={async (e) => {
-                  const file = e.target.files?.[0];
+                  const file =
+                    e.target.files?.[0];
                   if (!file) return;
                   try {
-                    const dataUrl = await fileToDataUrl(file);
-                    handleFormChange('profileImageUrl', dataUrl);
+                    const dataUrl =
+                      await fileToDataUrl(file);
+                    handleFormChange(
+                      'profileImageUrl',
+                      dataUrl
+                    );
                   } catch (err) {
                     console.error(err);
-                    alert('Bild konnte nicht gelesen werden.');
+                    alert(
+                      'Bild konnte nicht gelesen werden.'
+                    );
                   }
                 }}
               />
@@ -556,7 +625,10 @@ const ProfilePage = () => {
                 type="url"
                 value={form.bannerImageUrl}
                 onChange={(e) =>
-                  handleFormChange('bannerImageUrl', e.target.value)
+                  handleFormChange(
+                    'bannerImageUrl',
+                    e.target.value
+                  )
                 }
                 placeholder="https://… oder du wählst eine Datei unten"
               />
@@ -567,14 +639,21 @@ const ProfilePage = () => {
                 type="file"
                 accept="image/*"
                 onChange={async (e) => {
-                  const file = e.target.files?.[0];
+                  const file =
+                    e.target.files?.[0];
                   if (!file) return;
                   try {
-                    const dataUrl = await fileToDataUrl(file);
-                    handleFormChange('bannerImageUrl', dataUrl);
+                    const dataUrl =
+                      await fileToDataUrl(file);
+                    handleFormChange(
+                      'bannerImageUrl',
+                      dataUrl
+                    );
                   } catch (err) {
                     console.error(err);
-                    alert('Bild konnte nicht gelesen werden.');
+                    alert(
+                      'Bild konnte nicht gelesen werden.'
+                    );
                   }
                 }}
               />
@@ -586,7 +665,10 @@ const ProfilePage = () => {
                 type="text"
                 value={form.moodEmoji}
                 onChange={(e) =>
-                  handleFormChange('moodEmoji', e.target.value)
+                  handleFormChange(
+                    'moodEmoji',
+                    e.target.value
+                  )
                 }
                 placeholder="z.B. 🌍 😎 ✈️"
               />
@@ -597,7 +679,10 @@ const ProfilePage = () => {
                 type="text"
                 value={form.homeCity}
                 onChange={(e) =>
-                  handleFormChange('homeCity', e.target.value)
+                  handleFormChange(
+                    'homeCity',
+                    e.target.value
+                  )
                 }
                 placeholder="z.B. Berlin"
               />
@@ -608,7 +693,10 @@ const ProfilePage = () => {
                 type="text"
                 value={form.homeCountry}
                 onChange={(e) =>
-                  handleFormChange('homeCountry', e.target.value)
+                  handleFormChange(
+                    'homeCountry',
+                    e.target.value
+                  )
                 }
                 placeholder="z.B. Deutschland"
               />
@@ -619,7 +707,10 @@ const ProfilePage = () => {
                 type="text"
                 value={form.customStatus}
                 onChange={(e) =>
-                  handleFormChange('customStatus', e.target.value)
+                  handleFormChange(
+                    'customStatus',
+                    e.target.value
+                  )
                 }
                 placeholder="z.B. Auf der Jagd nach neuen Badges!"
               />
@@ -629,21 +720,41 @@ const ProfilePage = () => {
               <textarea
                 rows={4}
                 value={form.bio}
-                onChange={(e) => handleFormChange('bio', e.target.value)}
+                onChange={(e) =>
+                  handleFormChange(
+                    'bio',
+                    e.target.value
+                  )
+                }
                 placeholder="Erzähl etwas über deine Lieblingsreisen, Ziele und Träume."
               />
             </label>
 
-            <div style={{ marginTop: '0.5rem', fontSize: '0.88rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div
+              style={{
+                marginTop: '0.5rem',
+                fontSize: '0.88rem'
+              }}
+            >
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={form.isProfilePublic}
                   onChange={(e) =>
-                    handleFormChange('isProfilePublic', e.target.checked)
+                    handleFormChange(
+                      'isProfilePublic',
+                      e.target.checked
+                    )
                   }
                 />
-                Profil ist öffentlich sichtbar (Name, Avatar, Stats)
+                Profil ist öffentlich sichtbar (Name, Avatar,
+                Stats)
               </label>
               <label
                 style={{
@@ -657,7 +768,10 @@ const ProfilePage = () => {
                   type="checkbox"
                   checked={form.isFeedPublic}
                   onChange={(e) =>
-                    handleFormChange('isFeedPublic', e.target.checked)
+                    handleFormChange(
+                      'isFeedPublic',
+                      e.target.checked
+                    )
                   }
                 />
                 Check-ins im Feed für Freunde sichtbar
@@ -665,12 +779,18 @@ const ProfilePage = () => {
             </div>
 
             {error && (
-              <div className="error" style={{ marginTop: '0.5rem' }}>
+              <div
+                className="error"
+                style={{ marginTop: '0.5rem' }}
+              >
                 {error}
               </div>
             )}
             {saveMessage && (
-              <div className="status" style={{ marginTop: '0.5rem' }}>
+              <div
+                className="status"
+                style={{ marginTop: '0.5rem' }}
+              >
                 {saveMessage}
               </div>
             )}
@@ -681,7 +801,9 @@ const ProfilePage = () => {
               disabled={saving}
               style={{ marginTop: '0.75rem' }}
             >
-              {saving ? 'Speichere...' : 'Profil speichern'}
+              {saving
+                ? 'Speichere...'
+                : 'Profil speichern'}
             </button>
           </form>
         </div>
@@ -692,27 +814,41 @@ const ProfilePage = () => {
         <div className="card">
           <h3>Missions & Erfolge</h3>
 
-          {gamLoading && <p>Lade Gamification-Daten…</p>}
-          {gamError && <div className="error">{gamError}</div>}
+          {gamLoading && (
+            <p>Lade Gamification-Daten…</p>
+          )}
+          {gamError && (
+            <div className="error">{gamError}</div>
+          )}
 
           {!gamLoading && !gamError && (
             <>
               <h4>Aktive Missions</h4>
               {missions.length === 0 && (
-                <p>Aktuell sind noch keine Missions definiert.</p>
+                <p>
+                  Aktuell sind noch keine Missions
+                  definiert.
+                </p>
               )}
               {missions.length > 0 && (
                 <div className="missions-grid">
                   {missions.map((m) => {
-                    const goal = m.target_value ?? 0;
-                    const current = m.progress_value ?? 0;
+                    const goal =
+                      m.target_value ?? 0;
+                    const current =
+                      m.progress_value ?? 0;
                     const done =
-                      m.is_completed || m.completed_at != null;
+                      m.is_completed ||
+                      m.completed_at != null;
                     const percent =
                       goal > 0
                         ? Math.min(
                             100,
-                            Math.round((current / goal) * 100)
+                            Math.round(
+                              (current /
+                                goal) *
+                                100
+                            )
                           )
                         : 0;
 
@@ -720,14 +856,18 @@ const ProfilePage = () => {
                       <div
                         key={m.id}
                         className={`mission-card ${
-                          done ? 'mission-complete' : ''
+                          done
+                            ? 'mission-complete'
+                            : ''
                         }`}
                       >
                         <div className="mission-header">
                           <span className="mission-badge">
-                            {m.target_type === 'TOTAL_CHECKINS'
+                            {m.target_type ===
+                            'TOTAL_CHECKINS'
                               ? 'Check-ins'
-                              : m.target_type === 'STREAK_DAYS'
+                              : m.target_type ===
+                                'STREAK_DAYS'
                               ? 'Streak'
                               : 'Mission'}
                           </span>
@@ -737,7 +877,9 @@ const ProfilePage = () => {
                             </span>
                           )}
                         </div>
-                        <div className="mission-title">{m.name}</div>
+                        <div className="mission-title">
+                          {m.name}
+                        </div>
                         <div className="mission-description">
                           {m.description}
                         </div>
@@ -745,7 +887,9 @@ const ProfilePage = () => {
                           <div className="mission-progress-bar">
                             <div
                               className="mission-progress-fill"
-                              style={{ width: `${percent}%` }}
+                              style={{
+                                width: `${percent}%`
+                              }}
                             />
                           </div>
                           <div className="mission-progress-label">
@@ -758,21 +902,34 @@ const ProfilePage = () => {
                 </div>
               )}
 
-              <h4 style={{ marginTop: '1rem' }}>Erfolge</h4>
+              <h4
+                style={{
+                  marginTop: '1rem'
+                }}
+              >
+                Erfolge
+              </h4>
               {achievements.length === 0 && (
-                <p>Noch keine Erfolge freigeschaltet.</p>
+                <p>
+                  Noch keine Erfolge freigeschaltet.
+                </p>
               )}
               {achievements.length > 0 && (
                 <ul className="badge-list">
                   {achievements.map((a) => (
-                    <li key={a.id} className="badge-item">
+                    <li
+                      key={a.id}
+                      className="badge-item"
+                    >
                       <div className="badge-icon">
                         {a.icon || '🏆'}
                       </div>
                       <div className="badge-content">
                         <strong>{a.name}</strong>
                         <br />
-                        <small>{a.description}</small>
+                        <small>
+                          {a.description}
+                        </small>
                         <br />
                         <small>
                           Freigeschaltet am:{' '}
