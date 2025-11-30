@@ -10,8 +10,7 @@ import MapPage from './components/MapPage';
 import ProfilePage from './components/ProfilePage';
 import AdminDashboard from './components/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
-import FeedPage from './components/FeedPage';
-import FriendsPage from './components/FriendsPage';
+import TripsPage from './components/TripsPage';
 
 const App = () => {
   const [auth, setAuth] = useState({
@@ -21,6 +20,7 @@ const App = () => {
 
   const navigate = useNavigate();
 
+  // Beim Start: Token prüfen und User laden
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -31,7 +31,10 @@ const App = () => {
     api
       .get('/auth/me')
       .then((res) => {
-        setAuth({ user: res.data.user, loading: false });
+        setAuth({
+          user: res.data.user,
+          loading: false
+        });
       })
       .catch(() => {
         localStorage.removeItem('authToken');
@@ -39,8 +42,8 @@ const App = () => {
       });
   }, []);
 
-  const handleLogin = (token, user) => {
-    localStorage.setItem('authToken', token);
+  const handleLogin = (user) => {
+    // LoginPage / RegisterPage speichern den Token selbst in localStorage
     setAuth({ user, loading: false });
     navigate('/');
   };
@@ -52,7 +55,14 @@ const App = () => {
   };
 
   if (auth.loading) {
-    return <div className="center">Lade.</div>;
+    return (
+      <div className="app">
+        <Navbar user={null} onLogout={handleLogout} />
+        <div className="main-container">
+          <div className="center">Lade...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -68,25 +78,6 @@ const App = () => {
               </ProtectedRoute>
             }
           />
-
-          <Route
-            path="/feed"
-            element={
-              <ProtectedRoute user={auth.user}>
-                <FeedPage currentUser={auth.user} />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/friends"
-            element={
-              <ProtectedRoute user={auth.user}>
-                <FriendsPage />
-              </ProtectedRoute>
-            }
-          />
-
           <Route
             path="/profile"
             element={
@@ -95,16 +86,22 @@ const App = () => {
               </ProtectedRoute>
             }
           />
-
+          <Route
+            path="/trips"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <TripsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/admin"
             element={
-              <ProtectedRoute user={auth.user} requireAdmin>
+              <ProtectedRoute user={auth.user} requireAdmin={true}>
                 <AdminDashboard />
               </ProtectedRoute>
             }
           />
-
           <Route
             path="/login"
             element={
