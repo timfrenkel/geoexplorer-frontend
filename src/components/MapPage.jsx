@@ -37,6 +37,18 @@ const unvisitedIcon = L.divIcon({
   iconAnchor: [12, 24]
 });
 
+// Kategorien für Filter
+const CATEGORY_OPTIONS = [
+  { id: 'all', label: 'Alle' },
+  { id: 'landmark', label: 'Wahrzeichen' },
+  { id: 'culture', label: 'Kultur & Geschichte' },
+  { id: 'nature', label: 'Natur & Aussicht' },
+  { id: 'park', label: 'Parks & Gärten' },
+  { id: 'water', label: 'Wasser & Küste' },
+  { id: 'urban', label: 'Stadt & Viertel' },
+  { id: 'unique', label: 'Besondere Orte' }
+];
+
 // Hilfskomponente, die die Karte bei Änderung von "target" zentriert
 const MapController = ({ target }) => {
   const map = useMap();
@@ -59,6 +71,8 @@ const MapPage = () => {
   const [nearestTargets, setNearestTargets] = useState([]);
   const [locatingNearest, setLocatingNearest] = useState(false);
   const [focusedLocation, setFocusedLocation] = useState(null);
+
+  const [categoryFilter, setCategoryFilter] = useState('all');
 
   // Check-in Dialog
   const [checkinModal, setCheckinModal] = useState({
@@ -132,7 +146,6 @@ const MapPage = () => {
             {
               latitude,
               longitude,
-              // werden vom Backend genutzt oder ignoriert, je nach Implementierung
               message: checkinModal.message.trim() || '',
               imageUrl: checkinModal.imageUrl.trim() || ''
             }
@@ -169,7 +182,7 @@ const MapPage = () => {
     );
   };
 
-  // "Nächste Ziele" – nur unbesuchte Orte, sortiert nach Distanz zum aktuellen Standort
+  // "Nächste Ziele" – nur unbesuchte Orte, unabhängig vom Filter
   const handleFindNearest = () => {
     setGeoError('');
     setStatus('');
@@ -223,13 +236,73 @@ const MapPage = () => {
     setFocusedLocation(loc);
   };
 
+  // Kategorien-Filter anwenden
+  const filteredLocations =
+    categoryFilter === 'all'
+      ? locations
+      : locations.filter((loc) => loc.category === categoryFilter);
+
   const total = locations.length;
   const visitedCount = visitedIds.size;
   const progress = total > 0 ? Math.round((visitedCount / total) * 100) : 0;
 
+  const visibleCount = filteredLocations.length;
+
   return (
     <div className="page page-full">
       <div className="map-wrapper">
+        {/* Toolbar / Filter über der Karte */}
+        <div
+          style={{
+            marginBottom: '0.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.35rem'
+          }}
+        >
+          <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+            Filter nach Kategorie:{' '}
+            <span style={{ fontWeight: 500, color: '#e5e7eb' }}>
+              {
+                CATEGORY_OPTIONS.find((c) => c.id === categoryFilter)?.label ||
+                'Alle'
+              }
+            </span>{' '}
+            · Sichtbar: {visibleCount}/{total}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.4rem'
+            }}
+          >
+            {CATEGORY_OPTIONS.map((cat) => {
+              const active = cat.id === categoryFilter;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className="btn-small"
+                  style={{
+                    borderRadius: '999px',
+                    padding: '0.25rem 0.7rem',
+                    fontSize: '0.8rem',
+                    border: active ? '1px solid #38bdf8' : '1px solid #4b5563',
+                    background: active
+                      ? 'rgba(56, 189, 248, 0.15)'
+                      : 'rgba(31, 41, 55, 0.8)',
+                    color: active ? '#e0f2fe' : '#e5e7eb'
+                  }}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Overlay oben über der Karte: Fortschritt + Nächste Ziele */}
         <div className="map-overlay-top">
           {/* Fortschritt */}
@@ -295,7 +368,7 @@ const MapPage = () => {
               url="https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png"
             />
 
-            {locations.map((loc) => {
+            {filteredLocations.map((loc) => {
               const isVisited = visitedIds.has(loc.id);
               return (
                 <Marker
