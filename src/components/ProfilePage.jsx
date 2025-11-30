@@ -2,6 +2,20 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 
+const parseDateMaybeLocal = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') {
+    // Nur YYYY-MM-DD -> lokal parsen
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    return new Date(value);
+  }
+  return null;
+};
+
 // Base64-Helfer für Bild-Upload (als Data-URL)
 const fileToDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -155,11 +169,10 @@ const ProfilePage = () => {
 
   const { user, points = 0, badges = [] } = profile;
   const streak = user.checkinStreakDays || user.checkin_streak_days || 0;
-  const lastCheckinDate = user.lastCheckinDate
-    ? new Date(user.lastCheckinDate)
-    : user.last_checkin_date
-    ? new Date(user.last_checkin_date)
-    : null;
+  const lastCheckinDate = parseDateMaybeLocal(
+    user.lastCheckinDate || user.last_checkin_date
+  );
+  
 
   const { level, title, perLevel, pointsIntoLevel } =
     getLevelInfo(points);

@@ -177,38 +177,49 @@ const MapPage = () => {
             return next;
           });
 
-          // Punkte / Streak aktualisieren
-          setStats((prev) => ({
-            points:
-              typeof points === 'number' ? points : prev.points,
-            streakDays:
+          // Punkte + Streak + Toasts sauber anhand alter Werte
+          setStats((prev) => {
+            const oldPoints = prev.points ?? null;
+            const oldStreak = prev.streakDays ?? 0;
+
+            const nextPoints =
+              typeof points === 'number' ? points : oldPoints;
+            const nextStreak =
               typeof streakDays === 'number'
                 ? streakDays
-                : prev.streakDays
-          }));
+                : prev.streakDays;
 
-          // XP / Punkte-Toast
-          if (typeof points === 'number') {
-            showToast({
-              type: 'points',
-              title: '+1 Check-in',
-              message: `Du hast jetzt ${points} Punkte.`
-            });
-          }
+            // Punkte-Toast nur, wenn Backend Punkte sendet
+            if (typeof points === 'number') {
+              showToast({
+                type: 'points',
+                title: '+1 Check-in',
+                message: `Du hast jetzt ${points} Punkte.`
+              });
+            }
 
-          // Streak-Toast
-          if (typeof streakDays === 'number' && streakDays > 0) {
-            showToast({
-              type: 'streak',
-              title: `🔥 Streak: ${streakDays} Tage`,
-              message:
-                streakDays === 1
-                  ? 'Du hast eine neue Streak gestartet!'
-                  : 'Bleib dran, um deine Serie nicht zu verlieren!'
-            });
-          }
+            // Streak-Toast NUR, wenn sich die Streak erhöht hat
+            if (
+              typeof streakDays === 'number' &&
+              streakDays > oldStreak
+            ) {
+              showToast({
+                type: 'streak',
+                title: `🔥 Streak: ${streakDays} Tage`,
+                message:
+                  streakDays === 1
+                    ? 'Du hast eine neue Streak gestartet!'
+                    : 'Bleib dran, um deine Serie nicht zu verlieren!'
+              });
+            }
 
-          // Achievement-Toasts
+            return {
+              points: nextPoints,
+              streakDays: nextStreak
+            };
+          });
+
+          // Achievement-Toasts (falls neue dazukommen)
           if (Array.isArray(newAchievements)) {
             newAchievements.forEach((code) => {
               const label = ACHIEVEMENT_LABELS[code] || code;
@@ -220,7 +231,7 @@ const MapPage = () => {
             });
           }
 
-          // Missions neu laden
+          // Missions-Fortschritt nach Check-in neu laden
           await loadGamification();
         } catch (err) {
           console.error(err);
@@ -250,6 +261,7 @@ const MapPage = () => {
       }
     );
   };
+
 
   // "Nächste Ziele" – nur unbesuchte Orte
   const handleFindNearest = () => {
