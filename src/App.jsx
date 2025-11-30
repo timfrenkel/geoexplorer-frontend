@@ -11,6 +11,7 @@ import ProfilePage from './components/ProfilePage';
 import AdminDashboard from './components/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import TripsPage from './components/TripsPage';
+import FriendsPage from './components/FriendsPage';
 
 const App = () => {
   const [auth, setAuth] = useState({
@@ -20,7 +21,6 @@ const App = () => {
 
   const navigate = useNavigate();
 
-  // Beim Start: Token prüfen und User laden
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -43,7 +43,6 @@ const App = () => {
   }, []);
 
   const handleLogin = (user) => {
-    // LoginPage / RegisterPage speichern den Token selbst in localStorage
     setAuth({ user, loading: false });
     navigate('/');
   };
@@ -91,6 +90,14 @@ const App = () => {
             element={
               <ProtectedRoute user={auth.user}>
                 <TripsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/friends"
+            element={
+              <ProtectedRoute user={auth.user}>
+                <FriendsPage />
               </ProtectedRoute>
             }
           />

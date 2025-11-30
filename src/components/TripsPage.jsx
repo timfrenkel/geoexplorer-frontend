@@ -2,6 +2,14 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(e);
+    reader.readAsDataURL(file);
+  });
+
 const emptyTripForm = {
   id: null,
   name: '',
@@ -19,6 +27,18 @@ const TripsPage = () => {
   const [form, setForm] = useState(emptyTripForm);
   const [saving, setSaving] = useState(false);
 
+  // Locations & Trip-Details
+  const [locations, setLocations] = useState([]);
+  const [selectedTrip, setSelectedTrip] = useState(null);
+  const [tripLocations, setTripLocations] = useState([]);
+  const [detailError, setDetailError] = useState('');
+
+  const [addLocForm, setAddLocForm] = useState({
+    locationId: '',
+    note: '',
+    dayIndex: ''
+  });
+
   const loadTrips = () => {
     setLoading(true);
     setError('');
@@ -34,8 +54,36 @@ const TripsPage = () => {
       .finally(() => setLoading(false));
   };
 
+  const loadLocations = () => {
+    api
+      .get('/locations')
+      .then((res) => {
+        setLocations(res.data.locations || []);
+      })
+      .catch((err) => {
+        console.error(err);
+        // kein Hard-Error im UI; nur Konsole
+      });
+  };
+
+  const loadTripDetails = (tripId) => {
+    if (!tripId) return;
+    setDetailError('');
+    api
+      .get(`/trips/${tripId}`)
+      .then((res) => {
+        setSelectedTrip(res.data.trip);
+        setTripLocations(res.data.locations || []);
+      })
+      .catch((err) => {
+        console.error(err);
+        setDetailError('Fehler beim Laden der Trip-Details.');
+      });
+  };
+
   useEffect(() => {
     loadTrips();
+    loadLocations();
   }, []);
 
   const handleFormChange = (field, value) => {
@@ -72,6 +120,10 @@ const TripsPage = () => {
       if (form.id === tripId) {
         resetForm();
       }
+      if (selectedTrip && selectedTrip.id === tripId) {
+        setSelectedTrip(null);
+        setTripLocations([]);
+      }
     } catch (err) {
       console.error(err);
       alert('Fehler beim Löschen des Trips.');
@@ -104,6 +156,9 @@ const TripsPage = () => {
         setTrips((prev) =>
           prev.map((t) => (t.id === form.id ? res.data.trip : t))
         );
+        if (selectedTrip && selectedTrip.id === form.id) {
+          setSelectedTrip(res.data.trip);
+        }
       } else {
         res = await api.post('/trips', payload);
         setTrips((prev) => [res.data.trip, ...prev]);
@@ -117,10 +172,67 @@ const TripsPage = () => {
     }
   };
 
+  const handleAddLocFormChange = (field, value) => {
+    setAddLocForm((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleAddLocationToTrip = async (e) => {
+    e.preventDefault();
+    if (!selectedTrip) return;
+    if (!addLocForm.locationId) {
+      alert('Bitte eine Location auswählen.');
+      return;
+    }
+
+    try {
+      const payload = {
+        locationId: Number(addLocForm.locationId),
+        note: addLocForm.note.trim(),
+        dayIndex: addLocForm.dayIndex
+          ? Number(addLocForm.dayIndex)
+          : null
+      };
+      const res = await api.post(
+        `/trips/${selectedTrip.id}/locations`,
+        payload
+      );
+      setTripLocations((prev) => [...prev, res.data.tripLocation]);
+      setAddLocForm({
+        locationId: '',
+        note: '',
+        dayIndex: ''
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Fehler beim Hinzufügen der Location zum Trip.');
+    }
+  };
+
+  const handleRemoveLocationFromTrip = async (tripLocationId) => {
+    if (!selectedTrip) return;
+    if (!window.confirm('Diesen Ort aus dem Trip entfernen?')) return;
+
+    try {
+      await api.delete(
+        `/trips/${selectedTrip.id}/locations/${tripLocationId}`
+      );
+      setTripLocations((prev) =>
+        prev.filter((tl) => tl.id !== tripLocationId)
+      );
+    } catch (err) {
+      console.error(err);
+      alert('Fehler beim Entfernen der Location.');
+    }
+  };
+
   return (
     <div className="page">
       <h2>Deine Trips</h2>
 
+      {/* Formular Trip erstellen/bearbeiten */}
       <div className="card">
         <h3>{form.id ? 'Trip bearbeiten' : 'Neuen Trip erstellen'}</h3>
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -181,7 +293,25 @@ const TripsPage = () => {
               onChange={(e) =>
                 handleFormChange('coverImageUrl', e.target.value)
               }
-              placeholder="https://…"
+              placeholder="https://… oder du wählst unten eine Datei"
+            />
+          </label>
+          <label>
+            Cover-Bild-Datei hochladen
+            <input
+              type="file"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const dataUrl = await fileToDataUrl(file);
+                  handleFormChange('coverImageUrl', dataUrl);
+                } catch (err) {
+                  console.error(err);
+                  alert('Bild konnte nicht gelesen werden.');
+                }
+              }}
             />
           </label>
           <label
@@ -242,6 +372,7 @@ const TripsPage = () => {
         </form>
       </div>
 
+      {/* Liste der Trips */}
       <div className="card">
         <h3>Deine gespeicherten Trips</h3>
         {loading && <p>Lade Trips…</p>}
@@ -307,6 +438,15 @@ const TripsPage = () => {
                   </button>
                   <button
                     type="button"
+                    className="btn-small"
+                    onClick={() => {
+                      loadTripDetails(trip.id);
+                    }}
+                  >
+                    Details
+                  </button>
+                  <button
+                    type="button"
                     className="btn-small btn-danger"
                     onClick={() => handleDeleteTrip(trip.id)}
                   >
@@ -318,6 +458,123 @@ const TripsPage = () => {
           </ul>
         )}
       </div>
+
+      {/* Trip-Details: verbundene Locations */}
+      {selectedTrip && (
+        <div className="card">
+          <h3>Trip-Details: {selectedTrip.name}</h3>
+          {detailError && (
+            <div className="error" style={{ marginBottom: '0.5rem' }}>
+              {detailError}
+            </div>
+          )}
+
+          <p>
+            <strong>Beschreibung:</strong>{' '}
+            {selectedTrip.description || 'Keine Beschreibung.'}
+          </p>
+          <p>
+            <strong>Zeitraum:</strong>{' '}
+            {selectedTrip.start_date
+              ? new Date(selectedTrip.start_date).toLocaleDateString()
+              : '–'}{' '}
+            bis{' '}
+            {selectedTrip.end_date
+              ? new Date(selectedTrip.end_date).toLocaleDateString()
+              : '–'}
+          </p>
+
+          <h4 style={{ marginTop: '0.75rem' }}>Orte in diesem Trip</h4>
+          {tripLocations.length === 0 && (
+            <p>Noch keine Orte im Trip – füge welche hinzu! 🗺️</p>
+          )}
+          {tripLocations.length > 0 && (
+            <ul className="badge-list">
+              {tripLocations.map((tl) => (
+                <li key={tl.id} className="badge-item">
+                  <div className="badge-icon">📍</div>
+                  <div className="badge-content">
+                    <strong>
+                      {tl.location_name || `Location #${tl.location_id}`}
+                    </strong>
+                    <br />
+                    {tl.day_index != null && (
+                      <small>Tag {tl.day_index}</small>
+                    )}
+                    {tl.note && (
+                      <>
+                        <br />
+                        <small>{tl.note}</small>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-small btn-danger"
+                    onClick={() =>
+                      handleRemoveLocationFromTrip(tl.id)
+                    }
+                  >
+                    Entfernen
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <h4 style={{ marginTop: '0.75rem' }}>
+            Ort zum Trip hinzufügen
+          </h4>
+          <form
+            className="auth-form"
+            onSubmit={handleAddLocationToTrip}
+            style={{ marginTop: '0.5rem' }}
+          >
+            <label>
+              Location
+              <select
+                value={addLocForm.locationId}
+                onChange={(e) =>
+                  handleAddLocFormChange('locationId', e.target.value)
+                }
+              >
+                <option value="">Bitte auswählen…</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name} {loc.category ? `(${loc.category})` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Tag im Trip (optional)
+              <input
+                type="number"
+                min="1"
+                value={addLocForm.dayIndex}
+                onChange={(e) =>
+                  handleAddLocFormChange('dayIndex', e.target.value)
+                }
+                placeholder="z.B. 1, 2, 3…"
+              />
+            </label>
+            <label>
+              Notiz (optional)
+              <textarea
+                rows={2}
+                value={addLocForm.note}
+                onChange={(e) =>
+                  handleAddLocFormChange('note', e.target.value)
+                }
+                placeholder="Was machst du an diesem Ort?"
+              />
+            </label>
+            <button type="submit" className="btn-primary">
+              Ort hinzufügen
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

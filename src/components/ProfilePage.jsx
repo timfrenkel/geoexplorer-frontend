@@ -2,16 +2,20 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 
-// Level-System:
-// Level 1: 0–3 Punkte
-// Level 2: 3–9 Punkte (+6)
-// Level 3: 9–18 Punkte (+9)
-// Level 4: 18–30 Punkte (+12)
-// Jedes Level braucht 3 Punkte mehr als das vorherige.
+// Base64-Helfer
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(e);
+    reader.readAsDataURL(file);
+  });
+
+// Level-System
 const getLevelInfo = (points) => {
   let level = 1;
   let currentLevelStart = 0;
-  let increment = 3; // Level 1 -> 3 Punkte, dann +3 je Level
+  let increment = 3;
 
   while (points >= currentLevelStart + increment) {
     currentLevelStart += increment;
@@ -44,7 +48,6 @@ const ProfilePage = () => {
   const [saveMessage, setSaveMessage] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Form-State für Profilbearbeitung
   const [form, setForm] = useState({
     profileImageUrl: '',
     bannerImageUrl: '',
@@ -90,7 +93,6 @@ const ProfilePage = () => {
       });
   }, []);
 
-  // Gamification lazy nachladen
   useEffect(() => {
     if (activeTab !== 'gamification' || gamLoaded) return;
 
@@ -120,8 +122,7 @@ const ProfilePage = () => {
     level,
     title,
     perLevel,
-    pointsIntoLevel,
-    neededForNext
+    pointsIntoLevel
   } = getLevelInfo(points || 0);
 
   const levelProgressPercent =
@@ -144,8 +145,8 @@ const ProfilePage = () => {
 
     try {
       const payload = {
-        profileImageUrl: form.profileImageUrl.trim(),
-        bannerImageUrl: form.bannerImageUrl.trim(),
+        profileImageUrl: form.profileImageUrl || '',
+        bannerImageUrl: form.bannerImageUrl || '',
         bio: form.bio,
         moodEmoji: form.moodEmoji,
         homeCity: form.homeCity,
@@ -174,11 +175,15 @@ const ProfilePage = () => {
     ? new Date(user.lastCheckinDate)
     : null;
 
+  // Aktuelles Bild/Banner für Anzeige
+  const displayProfileImage = form.profileImageUrl || user.profileImageUrl;
+  const displayBannerImage = form.bannerImageUrl || user.bannerImageUrl;
+
   return (
     <div className="page">
       <h2>Profil</h2>
 
-      {/* Header mit Banner & Avatar */}
+      {/* Header mit Banner & Avatar, Banner im Hintergrund */}
       <div
         className="card"
         style={{ padding: 0, overflow: 'hidden', marginBottom: '1rem' }}
@@ -186,11 +191,11 @@ const ProfilePage = () => {
         <div
           style={{
             height: '110px',
-            background:
-              form.bannerImageUrl || user.bannerImageUrl
-                ? `url(${form.bannerImageUrl || user.bannerImageUrl}) center/cover no-repeat`
-                : 'linear-gradient(135deg, #0f172a, #1d4ed8)',
-            position: 'relative'
+            background: displayBannerImage
+              ? `url(${displayBannerImage}) center/cover no-repeat`
+              : 'linear-gradient(135deg, #0f172a, #1d4ed8)',
+            position: 'relative',
+            zIndex: 1
           }}
         />
         <div
@@ -199,7 +204,9 @@ const ProfilePage = () => {
             alignItems: 'flex-end',
             padding: '0 1rem 0.75rem',
             gap: '0.75rem',
-            marginTop: '-32px'
+            marginTop: '-32px',
+            position: 'relative',
+            zIndex: 2
           }}
         >
           <div
@@ -213,13 +220,15 @@ const ProfilePage = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: form.moodEmoji || user.moodEmoji ? '1.7rem' : '1.2rem',
-              color: 'white'
+              fontSize: displayProfileImage || user.moodEmoji ? '1.7rem' : '1.2rem',
+              color: 'white',
+              position: 'relative',
+              zIndex: 3
             }}
           >
-            {form.profileImageUrl || user.profileImageUrl ? (
+            {displayProfileImage ? (
               <img
-                src={form.profileImageUrl || user.profileImageUrl}
+                src={displayProfileImage}
                 alt={user.username}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
@@ -314,9 +323,9 @@ const ProfilePage = () => {
         </button>
       </div>
 
+      {/* Tab: Übersicht */}
       {activeTab === 'overview' && (
         <>
-          {/* Level & Statistik */}
           <div className="card">
             <p>
               <strong>E-Mail:</strong> {user.email}
@@ -358,7 +367,6 @@ const ProfilePage = () => {
             </p>
           </div>
 
-          {/* Bio */}
           <div className="card">
             <h3>Über dich</h3>
             <p style={{ whiteSpace: 'pre-wrap', marginTop: '0.25rem' }}>
@@ -368,7 +376,6 @@ const ProfilePage = () => {
             </p>
           </div>
 
-          {/* Badges */}
           <div className="card">
             <h3>Gesammelte Badges</h3>
             {(!badges || badges.length === 0) && (
@@ -396,6 +403,7 @@ const ProfilePage = () => {
         </>
       )}
 
+      {/* Tab: Edit */}
       {activeTab === 'edit' && (
         <div className="card">
           <h3>Profil bearbeiten</h3>
@@ -408,9 +416,28 @@ const ProfilePage = () => {
                 onChange={(e) =>
                   handleFormChange('profileImageUrl', e.target.value)
                 }
-                placeholder="https://…"
+                placeholder="https://… oder du wählst eine Datei unten"
               />
             </label>
+            <label>
+              Profilbild-Datei hochladen
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const dataUrl = await fileToDataUrl(file);
+                    handleFormChange('profileImageUrl', dataUrl);
+                  } catch (err) {
+                    console.error(err);
+                    alert('Bild konnte nicht gelesen werden.');
+                  }
+                }}
+              />
+            </label>
+
             <label>
               Banner-URL
               <input
@@ -419,9 +446,28 @@ const ProfilePage = () => {
                 onChange={(e) =>
                   handleFormChange('bannerImageUrl', e.target.value)
                 }
-                placeholder="https://…"
+                placeholder="https://… oder du wählst eine Datei unten"
               />
             </label>
+            <label>
+              Banner-Datei hochladen
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const dataUrl = await fileToDataUrl(file);
+                    handleFormChange('bannerImageUrl', dataUrl);
+                  } catch (err) {
+                    console.error(err);
+                    alert('Bild konnte nicht gelesen werden.');
+                  }
+                }}
+              />
+            </label>
+
             <label>
               Emoji / Stimmung
               <input
@@ -529,6 +575,7 @@ const ProfilePage = () => {
         </div>
       )}
 
+      {/* Tab: Gamification */}
       {activeTab === 'gamification' && (
         <div className="card">
           <h3>Missions & Erfolge</h3>
@@ -545,13 +592,9 @@ const ProfilePage = () => {
               {missions.length > 0 && (
                 <ul className="badge-list">
                   {missions.map((m) => {
-                    const goal = m.goal_value ?? m.target_value ?? 0;
-                    const current =
-                      m.current_value ?? m.progress_value ?? 0;
-                    const done =
-                      m.is_completed ??
-                      (m.completed_at != null) ??
-                      false;
+                    const goal = m.target_value ?? 0;
+                    const current = m.progress_value ?? 0;
+                    const done = m.is_completed ?? (m.completed_at != null);
                     return (
                       <li key={m.id} className="badge-item">
                         <div className="badge-icon">

@@ -13,6 +13,7 @@ const Navbar = ({ user, onLogout }) => {
           <>
             <Link to="/">Karte</Link>
             <Link to="/trips">Trips</Link>
+            <Link to="/friends">Freunde</Link>
             <Link to="/profile">Profil</Link>
             {user.isAdmin && <Link to="/admin">Admin</Link>}
             <button type="button" onClick={onLogout}>
